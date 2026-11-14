@@ -1,0 +1,42 @@
+<header class="site-header">
+  <div class="nav-wrap">
+    <a class="brand" href="/home" (click)="onBrandClick($event)" aria-label="Pawan Dham home">
+      <img class="brand-mark" src="/assets/icons/pawan-dham-mark.svg" alt="">
+      <span><strong>Pawan Dham</strong><small>Darshan & Holidays</small></span>
+    </a>
+    <button class="menu-toggle" type="button" (click)="menuOpen.update(open => !open)"
+      [attr.aria-expanded]="menuOpen()" aria-label="Toggle navigation">☰</button>
+    <nav class="main-nav" [class.main-nav--open]="menuOpen()" aria-label="Main navigation">
+      <a routerLink="/home" routerLinkActive="nav-active" (click)="closeMenu()">Home</a>
+      <a routerLink="/temples" routerLinkActive="nav-active" (click)="closeMenu()">Temples</a>
+      <a routerLink="/places" routerLinkActive="nav-active" (click)="closeMenu()">Places</a>
+      <a routerLink="/events" routerLinkActive="nav-active" (click)="closeMenu()">Events</a>
+      <a routerLink="/offers" routerLinkActive="nav-active" (click)="closeMenu()">Offers</a>
+      <a routerLink="/gallery" routerLinkActive="nav-active" (click)="closeMenu()">Gallery</a>
+      <a routerLink="/about" routerLinkActive="nav-active" (click)="closeMenu()">About</a>
+      <a routerLink="/contact" routerLinkActive="nav-active" (click)="closeMenu()">Contact</a>
+      @if (auth.isAuthenticated()) {
+        @if (auth.isCeo()) {
+          <a class="nav-admin" routerLink="/ceo/dashboard" (click)="closeMenu()">CEO dashboard</a>
+        } @else if (auth.role() === 'CUSTOMER') {
+          <a class="nav-admin" routerLink="/customer/dashboard" (click)="closeMenu()">My account</a>
+          <a class="nav-admin" routerLink="/portal/profile" (click)="closeMenu()">My profile</a>
+        } @else if (auth.role() === 'ADMIN') {
+          <a class="nav-admin" routerLink="/admin/dashboard" (click)="closeMenu()">Admin dashboard</a>
+          <a class="nav-admin" routerLink="/portal/users" (click)="closeMenu()">Team</a>
+        } @else if (auth.role() === 'MANAGER') {
+          <a class="nav-admin" routerLink="/manager/dashboard" (click)="closeMenu()">Manager dashboard</a>
+          <a class="nav-admin" routerLink="/portal/users" (click)="closeMenu()">Team</a>
+        } @else {
+          <a class="nav-admin" routerLink="/staff/dashboard" (click)="closeMenu()">Staff dashboard</a>
+          <a class="nav-admin" routerLink="/portal/users" (click)="closeMenu()">Customers</a>
+        }
+        <button class="nav-signout" type="button" (click)="signOut()">Sign out</button>
+      } @else {
+        <a class="nav-admin" routerLink="/admin/login" (click)="closeMenu()">Login</a>
+        <a class="nav-admin" routerLink="/ceo/login" (click)="closeMenu()">CEO login</a>
+      }
+      <a class="button button--small" routerLink="/booking" (click)="closeMenu()">Plan a trip</a>
+    </nav>
+  </div>
+</header>

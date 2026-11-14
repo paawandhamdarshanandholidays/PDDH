@@ -1,0 +1,24 @@
+server:
+  port: ${AUTH_PORT:9092}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pddh_auth_service_test}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+eureka:
+  client:
+    enabled: false
+
+app:
+  gateway:
+    internal-token: ${APP_GATEWAY_INTERNAL_TOKEN:test-gateway-internal-token-at-least-32-bytes}
+  jwt:
+    secret: ${JWT_SECRET:test-jwt-secret-key-change-me-to-32-chars}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}

@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+app:
+  jwt:
+    secret: ${JWT_SECRET:pddh-local-development-jwt-secret-change-before-deployment}
+  gateway:
+    internal-token: ${APP_GATEWAY_INTERNAL_TOKEN:pddh-local-development-gateway-token-change-before-deployment}
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Illustrated temple beside a river">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1">
+      <stop stop-color="#c58c57"/>
+      <stop offset="1" stop-color="#f0d5a4"/>
+    </linearGradient>
+    <linearGradient id="river" x2="0" y2="1">
+      <stop stop-color="#8a9a91"/>
+      <stop offset="1" stop-color="#435f5b"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1600v570H0z"/>
+  <circle cx="1190" cy="208" r="95" fill="#f5dfad" opacity=".9"/>
+  <path fill="#645245" d="m420 510 140-126 40 31 87-146 88 145 38-29 151 125v126H420z"/>
+  <path fill="#80634b" d="M593 510V354h58V225l36-74 38 74v129h59V510zm-86 0V420h36v-55l24-42 25 42v145zm377 0V420h38v-55l26-42 26 42v145z"/>
+  <path fill="#ecd7ae" d="M0 570h1600v330H0z"/>
+  <path fill="url(#river)" d="M0 650q250-70 500 0t500 0 600 0v250H0z"/>
+  <path fill="#dcb57d" opacity=".65" d="M0 730q260-48 520 0t520 0 560 0v22q-280 52-560 0t-520 0T0 752z"/>
+  <path fill="#4b5548" d="M0 570h1600v30q-250 44-500 0t-500 0T0 600z"/>
+</svg>

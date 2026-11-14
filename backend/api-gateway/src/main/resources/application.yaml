@@ -1,0 +1,188 @@
+server:
+  port: 9091
+
+spring:
+  application:
+    name: api-gateway
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth/**
+              filters:
+                - AddRequestHeader=X-Gateway-Request, true
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: user-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - AddRequestHeader=X-Gateway-Request, true
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: temples-service
+              uri: lb://temples-service
+              predicates:
+                - Path=/api/catalog/temples/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: places-service
+              uri: lb://places-service
+              predicates:
+                - Path=/api/catalog/places/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: events-service
+              uri: lb://events-service
+              predicates:
+                - Path=/api/catalog/events/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: offers-service
+              uri: lb://offers-service
+              predicates:
+                - Path=/api/catalog/offers/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: gallery-service
+              uri: lb://gallery-service
+              predicates:
+                - Path=/api/catalog/gallery/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: contact-service
+              uri: lb://contact-service
+              predicates:
+                - Path=/api/catalog/contact/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: trips-service
+              uri: lb://trips-service
+              predicates:
+                - Path=/api/catalog/trips/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: stays-service
+              uri: lb://stays-service
+              predicates:
+                - Path=/api/catalog/hotels/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/bookings/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: contact-enquiries
+              uri: lb://contact-service
+              predicates:
+                - Path=/api/enquiries/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: ceo-service
+              uri: lb://ceo-service
+              predicates:
+                - Path=/api/roles/ceo/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: admin-service
+              uri: lb://admin-service
+              predicates:
+                - Path=/api/roles/admin/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: manager-service
+              uri: lb://manager-service
+              predicates:
+                - Path=/api/roles/manager/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: staff-service
+              uri: lb://staff-service
+              predicates:
+                - Path=/api/roles/staff/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+            - id: customer-service
+              uri: lb://customer-service
+              predicates:
+                - Path=/api/roles/customer/**
+              filters:
+                - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Authentication
+        url: /api-docs/services/auth-service
+      - name: Bookings
+        url: /api-docs/services/booking-service
+      - name: CEO
+        url: /api-docs/services/ceo-service
+      - name: Administration
+        url: /api-docs/services/admin-service
+      - name: Management
+        url: /api-docs/services/manager-service
+      - name: Staff
+        url: /api-docs/services/staff-service
+      - name: Customers
+        url: /api-docs/services/customer-service
+      - name: Temples
+        url: /api-docs/services/temples-service
+      - name: Places
+        url: /api-docs/services/places-service
+      - name: Events
+        url: /api-docs/services/events-service
+      - name: Offers
+        url: /api-docs/services/offers-service
+      - name: Gallery
+        url: /api-docs/services/gallery-service
+      - name: Contact
+        url: /api-docs/services/contact-service
+      - name: Trips
+        url: /api-docs/services/trips-service
+      - name: Stays
+        url: /api-docs/services/stays-service
+    urls-primary-name: Authentication
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    prefer-ip-address: true
+
+app:
+  gateway:
+    internal-token: ${APP_GATEWAY_INTERNAL_TOKEN}
+  jwt:
+    secret: ${JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+   # org.springframework.cloud.netflix.eureka: DEBUG
+   # com.netflix.discovery: DEBUG
+    # Essential for debugging Feign calls
+    #org.springframework.cloud.openfeign: DEBUG
+    #io.github.resilience4j: DEBUG

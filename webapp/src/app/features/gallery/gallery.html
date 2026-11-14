@@ -1,0 +1,6 @@
+<section class="page-hero page-hero--gallery"><p class="eyebrow eyebrow--light">Postcards from the road</p><h1>Our gallery</h1><p>A glimpse of the places, people and moments that make every journey special.</p></section>
+<section class="section">
+  <div class="section-heading"><div><p class="eyebrow">The journey, in frames</p><h2>Take a closer look</h2></div></div>
+  <div class="filter-row">@for (item of categories(); track item) { <button type="button" class="filter-chip" [class.filter-chip--active]="category() === item" (click)="category.set(item)">{{ item }}</button> }</div>
+  <app-image-gallery [images]="filteredImages()" />
+</section>

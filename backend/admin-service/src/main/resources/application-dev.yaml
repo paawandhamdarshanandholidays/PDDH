@@ -1,0 +1,15 @@
+app:
+  jwt:
+    secret: ${JWT_SECRET:pddh-local-development-jwt-secret-change-before-deployment}
+  gateway:
+    internal-token: ${APP_GATEWAY_INTERNAL_TOKEN:pddh-local-development-gateway-token-change-before-deployment}
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+logging:
+  level:
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:DEBUG}
+    org.springframework.jdbc.core.JdbcTemplate: ${SQL_LOG_LEVEL:DEBUG}
+    org.springframework.jdbc.datasource.init.ScriptUtils: ${SQL_LOG_LEVEL:INFO}
