@@ -5,7 +5,7 @@ import { Trip, TripDraft } from '../models/trip.model';
 import { getApiBaseUrl } from './api-url';
 import { AuthService } from './auth.service';
 import { IdempotencySubmission } from './idempotency-key';
-import { isPublicHttpUrl } from './image-url.service';
+import { isImageSource, resolveCatalogImageUrl } from './image-url.service';
 
 @Injectable({ providedIn: 'root' })
 export class TripService {
@@ -30,7 +30,7 @@ export class TripService {
   }
 
   addTrip(draft: TripDraft): Observable<Trip> {
-    if (!isPublicHttpUrl(draft.imageUrl)) {
+    if (!isImageSource(draft.imageUrl)) {
       return throwError(() => new Error('Image values must be public HTTP or HTTPS URLs.'));
     }
     return defer(() => this.http.post<unknown>(`${this.apiUrl}/api/catalog/trips`, draft, {
@@ -38,7 +38,7 @@ export class TripService {
     })).pipe(
       map((value) => {
         if (!isTrip(value)) throw new Error('The saved journey response has an invalid format.');
-        return value;
+        return { ...value, imageUrl: resolveCatalogImageUrl(value.imageUrl, this.apiUrl) };
       }),
       tap((trip) => {
         this.tripState.set([trip, ...this.tripState()]);
@@ -52,13 +52,13 @@ export class TripService {
     if (!this.tripState().some((trip) => trip.id === id)) {
       return throwError(() => new Error(`Trip "${id}" was not found.`));
     }
-    if (!isPublicHttpUrl(draft.imageUrl)) {
+    if (!isImageSource(draft.imageUrl)) {
       return throwError(() => new Error('Image values must be public HTTP or HTTPS URLs.'));
     }
     return this.http.put<unknown>(`${this.apiUrl}/api/catalog/trips/${encodeURIComponent(id)}`, draft).pipe(
       map((value) => {
         if (!isTrip(value)) throw new Error('The updated journey response has an invalid format.');
-        return value;
+        return { ...value, imageUrl: resolveCatalogImageUrl(value.imageUrl, this.apiUrl) };
       }),
       tap((trip) => this.tripState.set(this.tripState().map((item) => item.id === id ? trip : item))),
       takeUntil(this.auth.logoutEvents),
@@ -84,7 +84,10 @@ export class TripService {
       next: (value) => {
         this.loading.set(false);
         if (Array.isArray(value) && value.every(isTrip)) {
-          this.tripState.set(value);
+          this.tripState.set(value.map((trip) => ({
+            ...trip,
+            imageUrl: resolveCatalogImageUrl(trip.imageUrl, this.apiUrl),
+          })));
         } else {
           this.loadError.set('The trips API returned data in an invalid format.');
           console.error(this.loadError());

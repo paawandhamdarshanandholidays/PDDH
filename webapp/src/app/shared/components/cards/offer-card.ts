@@ -10,6 +10,7 @@ import { Trip } from '../../../core/models/trip.model';
   imports: [DatePipe, RouterLink],
   template: `
     <article class="offer-card">
+      @if (offer().imageUrl) { <img class="offer-card__image" [src]="offer().imageUrl" [alt]="offer().title" loading="lazy"> }
       <span class="offer-card__discount">{{ offer().discountPercent }}% <small>OFF</small></span>
       <p class="eyebrow">A little something for your journey</p>
       <h3>{{ offer().title }}</h3>

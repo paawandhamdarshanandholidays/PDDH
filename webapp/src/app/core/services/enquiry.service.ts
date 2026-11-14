@@ -14,8 +14,18 @@ export interface EnquiryRequest {
 
 export interface EnquiryResponse {
   id: string;
-  status: string;
+  status: EnquiryStatus;
   createdAt: string;
+}
+
+export type EnquiryStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface EnquiryRecord extends EnquiryResponse {
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -27,5 +37,16 @@ export class EnquiryService {
     return this.http.post<EnquiryResponse>(`${this.apiUrl}/api/enquiries`, request, {
       headers: new HttpHeaders({ 'Idempotency-Key': idempotencyKey }),
     });
+  }
+
+  list(): Observable<EnquiryRecord[]> {
+    return this.http.get<EnquiryRecord[]>(`${this.apiUrl}/api/enquiries`);
+  }
+
+  updateStatus(id: string, status: EnquiryStatus): Observable<EnquiryRecord> {
+    return this.http.patch<EnquiryRecord>(
+      `${this.apiUrl}/api/enquiries/${encodeURIComponent(id)}/status`,
+      { status },
+    );
   }
 }

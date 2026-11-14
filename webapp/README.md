@@ -57,3 +57,7 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Management
+
+Admin, Staff, CEO, and Manager users can access the customer directory at `/portal/user-directory` and the combined bookings and enquiries dashboard at `/portal/management`. Catalog image fields accept a public image URL or a local PNG, JPEG, GIF, or WebP file up to 5 MB.

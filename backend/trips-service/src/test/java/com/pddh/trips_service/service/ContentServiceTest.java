@@ -19,7 +19,7 @@ class ContentServiceTest {
     @Test
     void createReturnsAJsonObjectCompatibleWithTheHttpSerializer() throws Exception {
         ContentItemRepository repository = mock(ContentItemRepository.class);
-        ContentService service = new ContentService(repository, new ObjectMapper(), "trip");
+        ContentService service = new ContentService(repository, new ObjectMapper(), "trips");
 
         Map<String, Object> response = service.create(Map.of(
                 "title", "Temple journey",
@@ -37,5 +37,22 @@ class ContentServiceTest {
         ArgumentCaptor<ContentItem> savedItem = ArgumentCaptor.forClass(ContentItem.class);
         verify(repository).saveAndFlush(savedItem.capture());
         assertTrue(savedItem.getValue().getPayload().contains("\"title\":\"Temple journey\""));
+    }
+
+    @Test
+    void storesUploadedImageBytesSeparatelyFromThePublicContentPayload() {
+        ContentItemRepository repository = mock(ContentItemRepository.class);
+        ContentService service = new ContentService(repository, new ObjectMapper(), "trips");
+
+        Map<String, Object> response = service.create(Map.of(
+                "title", "Temple journey",
+                "imageUrl", "data:image/png;base64,iVBORw0KGgo="));
+
+        assertTrue(((String) response.get("imageUrl")).matches(
+                "^/api/catalog/trips/[0-9a-f-]+/image$"));
+        ArgumentCaptor<ContentItem> savedItem = ArgumentCaptor.forClass(ContentItem.class);
+        verify(repository).saveAndFlush(savedItem.capture());
+        assertTrue(savedItem.getValue().getImages().length > 0);
+        assertFalse(savedItem.getValue().getPayload().contains("data:image/"));
     }
 }

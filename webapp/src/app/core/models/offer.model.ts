@@ -7,6 +7,7 @@ export interface Offer {
   validUntil: string;
   tripId: string;
   active: boolean;
+  imageUrl?: string;
 }
 
 export type OfferDraft = Omit<Offer, 'id'>;

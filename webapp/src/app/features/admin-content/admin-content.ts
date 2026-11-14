@@ -13,7 +13,8 @@ import { HotelService } from '../../core/services/hotel.service';
 import { OfferService } from '../../core/services/offer.service';
 import { TripService } from '../../core/services/trip.service';
 import { ContactDetailsDraft, ContactDetailsService } from '../../core/services/contact-details.service';
-import { ImageUrlService, isPublicHttpUrl } from '../../core/services/image-url.service';
+import { ImageUrlService, isImageSource } from '../../core/services/image-url.service';
+import { ImageSourceField } from '../../shared/components/image-source-field/image-source-field';
 
 const emptyOffer = (): OfferDraft => ({
   title: '',
@@ -23,12 +24,13 @@ const emptyOffer = (): OfferDraft => ({
   validUntil: '',
   tripId: '',
   active: true,
+  imageUrl: '',
 });
 
 @Component({
   selector: 'app-admin-content',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink],
+  imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, ImageSourceField],
   template: `
     <section class="admin-page">
       <div class="admin-heading"><div><p class="eyebrow">Staff workspace</p><h1>Offers & gallery</h1><p>Publish offers and add journey images for visitors to explore.</p></div><div class="admin-heading__links"><a class="text-link" routerLink="/admin/trips">Manage trips <span aria-hidden="true">→</span></a><span class="admin-count">{{ gallery.images().length }} images · {{ offers.offers().length }} offers</span></div></div>
@@ -51,15 +53,12 @@ const emptyOffer = (): OfferDraft => ({
             <label>Name<input name="destinationName" [(ngModel)]="destinationDraft.name" required maxlength="80"></label>
             <label>Location<input name="region" [(ngModel)]="destinationDraft.region" required maxlength="100" placeholder="City, state"></label>
             <label>Description<textarea name="destinationDescription" [(ngModel)]="destinationDraft.description" required maxlength="260" rows="3"></textarea></label>
-            <label>Image URL<input name="destinationImage" [(ngModel)]="destinationDraft.imageUrl" (blur)="resolveDestinationImage()" (ngModelChange)="destinationPreviewFailed.set(false)" required type="text" placeholder="Direct image URL or Unsplash photo page"></label>
-            <div class="gallery-preview" [class.gallery-preview--empty]="!destinationDraft.imageUrl">
-              @if (destinationDraft.imageUrl) { <img [src]="destinationDraft.imageUrl" [alt]="destinationDraft.name || 'Temple image preview'" (error)="destinationPreviewFailed.set(true)"> @if (destinationPreviewFailed()) { <span>This image could not be loaded. Use a public HTTP or HTTPS image URL.</span> } }
-              @else { <span>Image preview will appear here</span> }
-            </div>
+            <app-image-source-field name="destinationImage" [(ngModel)]="destinationDraft.imageUrl" (urlBlur)="resolveDestinationImage()"
+              [label]="selectedForm() === 'temple' ? 'Temple image' : 'Place image'" [altText]="destinationDraft.name || 'Destination image preview'" required />
             @if (resolvingDestinationImage()) { <p class="form-hint" role="status">Preparing image preview…</p> }
             <label>Category<select name="destinationCategory" [(ngModel)]="destinationDraft.category" [disabled]="destinationDraft.kind === 'Temple'"><option value="Temple">Temple</option><option value="Nature">Nature</option><option value="Heritage">Heritage</option></select></label>
-            <button class="button" type="submit" [disabled]="destinationForm.invalid || resolvingDestinationImage() || destinationPreviewFailed()">Add {{ selectedForm() }}</button>
-            <p class="form-hint">Paste a direct public HTTP or HTTPS image URL or an Unsplash photo page. Only the URL is saved.</p>
+            <button class="button" type="submit" [disabled]="destinationForm.invalid || resolvingDestinationImage()">Add {{ selectedForm() }}</button>
+            <p class="form-hint">Paste a public image URL or upload a file. Unsplash photo pages are also supported.</p>
           </form>
           <div class="manager-list">
             <div class="list-heading"><div><p class="eyebrow">Public destination pages</p><h2>{{ selectedForm() === 'temple' ? 'Temples' : 'Places' }}</h2></div></div>
@@ -80,15 +79,12 @@ const emptyOffer = (): OfferDraft => ({
             <label>Hotel or dharamshala name<input name="hotelName" [(ngModel)]="hotelDraft.name" required maxlength="90"></label>
             <label>Location<input name="hotelLocation" [(ngModel)]="hotelDraft.location" required maxlength="100"></label>
             <label>Description<textarea name="hotelDescription" [(ngModel)]="hotelDraft.description" required maxlength="240" rows="3"></textarea></label>
-            <label>Image URL<input name="hotelImage" [(ngModel)]="hotelDraft.imageUrl" (ngModelChange)="hotelPreviewFailed.set(false)" required type="text" placeholder="https://…"></label>
-            <div class="gallery-preview" [class.gallery-preview--empty]="!hotelDraft.imageUrl">
-              @if (hotelDraft.imageUrl) { <img [src]="hotelDraft.imageUrl" [alt]="hotelDraft.name || 'Accommodation image preview'" (error)="hotelPreviewFailed.set(true)"> @if (hotelPreviewFailed()) { <span>Image preview could not be loaded. Check the URL.</span> } }
-              @else { <span>Image preview will appear here</span> }
-            </div>
+            <app-image-source-field name="hotelImage" [(ngModel)]="hotelDraft.imageUrl" label="Accommodation image"
+              [altText]="hotelDraft.name || 'Accommodation image preview'" required />
             <label>Price per night (₹)<input name="pricePerNight" [(ngModel)]="hotelDraft.pricePerNight" required type="number" min="0"></label>
             <label>Amenities<input name="amenities" [(ngModel)]="hotelDraft.amenities" required maxlength="180" placeholder="Family rooms, Wi-Fi, Parking"></label>
             <button class="button" type="submit" [disabled]="hotelForm.invalid">Publish accommodation</button>
-            <p class="form-hint">Provide a public HTTP or HTTPS image URL. Only the URL is saved.</p>
+            <p class="form-hint">Paste a public image URL or upload an image to the stays database.</p>
           </form>
           <div class="manager-list">
             <div class="list-heading"><div><p class="eyebrow">Available stays</p><h2>Hotels & dharamshalas</h2></div></div>
@@ -106,13 +102,10 @@ const emptyOffer = (): OfferDraft => ({
             <label>Event title<input name="eventTitle" [(ngModel)]="eventDraft.title" required maxlength="90"></label>
             <div class="form-row"><label>Date or schedule<input name="eventDate" [(ngModel)]="eventDraft.date" required maxlength="60"></label><label>Location<input name="eventLocation" [(ngModel)]="eventDraft.location" required maxlength="90"></label></div>
             <label>Description<textarea name="eventDescription" [(ngModel)]="eventDraft.description" required maxlength="240" rows="3"></textarea></label>
-            <label>Image URL<input name="eventImage" [(ngModel)]="eventDraft.imageUrl" (ngModelChange)="eventPreviewFailed.set(false)" required type="text" placeholder="https://…"></label>
-            <div class="gallery-preview" [class.gallery-preview--empty]="!eventDraft.imageUrl">
-              @if (eventDraft.imageUrl) { <img [src]="eventDraft.imageUrl" [alt]="eventDraft.title || 'Event image preview'" (error)="eventPreviewFailed.set(true)"> @if (eventPreviewFailed()) { <span>Image preview could not be loaded. Check the URL.</span> } }
-              @else { <span>Image preview will appear here</span> }
-            </div>
+            <app-image-source-field name="eventImage" [(ngModel)]="eventDraft.imageUrl" label="Event image"
+              [altText]="eventDraft.title || 'Event image preview'" required />
             <button class="button" type="submit" [disabled]="eventForm.invalid">Publish event</button>
-            <p class="form-hint">Provide a public HTTP or HTTPS image URL. Only the URL is saved.</p>
+            <p class="form-hint">Paste a public image URL or upload an image to the events database.</p>
           </form>
           <div class="manager-list">
             <div class="list-heading"><div><p class="eyebrow">Public event page</p><h2>Current events</h2></div></div>
@@ -127,15 +120,12 @@ const emptyOffer = (): OfferDraft => ({
             <div><p class="eyebrow">Build your visual story</p><h2>Add a gallery image</h2></div>
             @if (imageMessage()) { <div class="notice notice--success" role="status">{{ imageMessage() }}</div> }
             @if (imageError()) { <div class="notice notice--error" role="alert">{{ imageError() }}</div> }
-            <label>Image URL<input name="imageUrl" [(ngModel)]="imageDraft.src" (ngModelChange)="previewFailed.set(false)" required type="text" placeholder="https://example.com/your-image.jpg"></label>
-            <div class="gallery-preview" [class.gallery-preview--empty]="!imageDraft.src">
-              @if (imageDraft.src) { <img [src]="imageDraft.src" alt="Preview of the image to add" (error)="previewFailed.set(true)"> @if (previewFailed()) { <span>Image preview could not be loaded. Check the image URL.</span> } }
-              @else { <span>Your image preview will appear here</span> }
-            </div>
+            <app-image-source-field name="galleryImage" [(ngModel)]="imageDraft.src" label="Gallery image"
+              altText="Preview of the image to add" required />
             <label>Image description<input name="alt" [(ngModel)]="imageDraft.alt" required maxlength="120" placeholder="Describe the scene for visitors"></label>
             <label>Gallery category<input name="category" [(ngModel)]="imageDraft.category" required maxlength="40" placeholder="Varanasi, Ayodhya, Nature..."></label>
             <button class="button" type="submit" [disabled]="imageForm.invalid || !imageDraft.src">Add image to gallery <span aria-hidden="true">→</span></button>
-            <p class="form-hint">Provide a public HTTP or HTTPS image URL. Only the URL is saved. Images are cropped consistently in the gallery.</p>
+            <p class="form-hint">Paste a public image URL or upload an image to the gallery database.</p>
           </form>
           <div class="manager-list">
             <div class="list-heading"><div><p class="eyebrow">Website gallery</p><h2>Image library</h2></div></div>
@@ -159,6 +149,8 @@ const emptyOffer = (): OfferDraft => ({
             <div class="form-row"><label>Promo code<input name="code" [(ngModel)]="offerDraft.code" required maxlength="20" placeholder="JOURNEY10"></label><label>Discount (%)<input name="discount" [(ngModel)]="offerDraft.discountPercent" required type="number" min="1" max="90"></label></div>
             <label>Applies to<select name="tripId" [(ngModel)]="offerDraft.tripId" required><option value="">Choose a journey</option>@for (trip of trips.trips(); track trip.id) { <option [value]="trip.id">{{ trip.title }}</option> }</select></label>
             <label>Valid until<input name="validUntil" [(ngModel)]="offerDraft.validUntil" [min]="today" required type="date"></label>
+            <app-image-source-field name="offerImage" [(ngModel)]="offerDraft.imageUrl" label="Offer image"
+              [altText]="offerDraft.title || 'Offer image preview'" required />
             <button class="button" type="submit" [disabled]="offerForm.invalid || !trips.trips().length">Publish offer <span aria-hidden="true">→</span></button>
             @if (!trips.trips().length) { <p class="form-hint">Add a trip before publishing a linked offer.</p> }
           </form>
@@ -166,7 +158,7 @@ const emptyOffer = (): OfferDraft => ({
             <div class="list-heading"><div><p class="eyebrow">Manage promotions</p><h2>Current offers</h2></div></div>
             <div class="admin-offer-list">
               @for (offer of offers.offers(); track offer.id) {
-                <article class="admin-offer"><div class="admin-offer__discount">{{ offer.discountPercent }}%</div><div class="admin-offer__body"><h3>{{ offer.title }}</h3><p>{{ offer.code }} · until {{ offer.validUntil | date:'mediumDate' }}</p><span>{{ tripTitle(offer.tripId) }}</span></div><button class="text-button text-button--danger" type="button" (click)="removeOffer(offer.id)">Remove</button></article>
+                <article class="admin-offer">@if (offer.imageUrl) { <img class="admin-hotel-image" [src]="offer.imageUrl" [alt]="offer.title"> }<div class="admin-offer__discount">{{ offer.discountPercent }}%</div><div class="admin-offer__body"><h3>{{ offer.title }}</h3><p>{{ offer.code }} · until {{ offer.validUntil | date:'mediumDate' }}</p><span>{{ tripTitle(offer.tripId) }}</span></div><button class="text-button text-button--danger" type="button" (click)="removeOffer(offer.id)">Remove</button></article>
               } @empty { <div class="empty-state"><h3>No offers yet</h3><p>Use the form to publish your first offer.</p></div> }
             </div>
           </div>
@@ -200,7 +192,6 @@ const emptyOffer = (): OfferDraft => ({
 export class AdminContent {
   readonly destinationMessage = signal('');
   readonly destinationError = signal('');
-  readonly destinationPreviewFailed = signal(false);
   readonly resolvingDestinationImage = signal(false);
   readonly hotelMessage = signal('');
   readonly hotelError = signal('');
@@ -212,9 +203,6 @@ export class AdminContent {
   readonly offerError = signal('');
   readonly contactMessage = signal('');
   readonly contactError = signal('');
-  readonly previewFailed = signal(false);
-  readonly hotelPreviewFailed = signal(false);
-  readonly eventPreviewFailed = signal(false);
   readonly today = new Date().toISOString().slice(0, 10);
   private readonly imageUrls = inject(ImageUrlService);
   readonly selectedForm = signal<'temple' | 'place' | 'hotel' | 'event' | 'gallery' | 'offer' | 'contact'>('temple');
@@ -263,8 +251,8 @@ export class AdminContent {
       this.resolveDestinationImage(() => this.persistDestination());
       return;
     }
-    if (!isPublicHttpUrl(this.destinationDraft.imageUrl)) {
-      this.destinationError.set('Enter a public HTTP or HTTPS image URL.');
+    if (!isImageSource(this.destinationDraft.imageUrl)) {
+      this.destinationError.set('Enter a public image URL or choose a supported image file.');
       return;
     }
     this.persistDestination();
@@ -276,7 +264,6 @@ export class AdminContent {
     this.content.addDestination(draft).subscribe({
       next: () => {
         this.destinationDraft = { kind, name: '', region: '', description: '', imageUrl: '', category: kind === 'Temple' ? 'Temple' : 'Heritage' };
-        this.destinationPreviewFailed.set(false);
         this.destinationMessage.set('The new listing is now on its public page.');
       },
       error: (error: unknown) => this.destinationError.set(writeError(error, 'Could not add this place')),
@@ -291,13 +278,11 @@ export class AdminContent {
     this.imageUrls.resolveUnsplashPhotoPage(url).subscribe({
       next: ({ imageUrl }) => {
         this.destinationDraft = { ...this.destinationDraft, imageUrl };
-        this.destinationPreviewFailed.set(false);
         this.resolvingDestinationImage.set(false);
         afterResolve?.();
       },
       error: () => {
         this.resolvingDestinationImage.set(false);
-        this.destinationPreviewFailed.set(true);
         this.destinationError.set('Could not open that Unsplash photo page. Use a direct public HTTP or HTTPS image URL.');
       },
     });
@@ -314,15 +299,14 @@ export class AdminContent {
   addHotel(): void {
     this.hotelError.set('');
     this.hotelMessage.set('');
-    if (!isPublicHttpUrl(this.hotelDraft.imageUrl)) {
-      this.hotelError.set('Enter a public HTTP or HTTPS image URL.');
+    if (!isImageSource(this.hotelDraft.imageUrl)) {
+      this.hotelError.set('Enter a public image URL or choose a supported image file.');
       return;
     }
     const draft = { ...this.hotelDraft, name: this.hotelDraft.name.trim(), location: this.hotelDraft.location.trim(), description: this.hotelDraft.description.trim(), imageUrl: this.hotelDraft.imageUrl.trim(), amenities: this.hotelDraft.amenities.trim() };
     this.hotels.addHotel(draft).subscribe({
       next: () => {
         this.hotelDraft = { name: '', location: '', description: '', imageUrl: '', pricePerNight: 0, amenities: '' };
-        this.hotelPreviewFailed.set(false);
         this.hotelMessage.set('Accommodation added to the public stay page.');
       },
       error: (error: unknown) => this.hotelError.set(writeError(error, 'Could not add this accommodation')),
@@ -340,15 +324,14 @@ export class AdminContent {
   addEvent(): void {
     this.eventError.set('');
     this.eventMessage.set('');
-    if (!isPublicHttpUrl(this.eventDraft.imageUrl)) {
-      this.eventError.set('Enter a public HTTP or HTTPS image URL.');
+    if (!isImageSource(this.eventDraft.imageUrl)) {
+      this.eventError.set('Enter a public image URL or choose a supported image file.');
       return;
     }
     const draft = { ...this.eventDraft, title: this.eventDraft.title.trim(), date: this.eventDraft.date.trim(), location: this.eventDraft.location.trim(), description: this.eventDraft.description.trim(), imageUrl: this.eventDraft.imageUrl.trim() };
     this.content.addEvent(draft).subscribe({
       next: () => {
         this.eventDraft = { title: '', date: '', location: '', description: '', imageUrl: '' };
-        this.eventPreviewFailed.set(false);
         this.eventMessage.set('Event published on the public events page.');
       },
       error: (error: unknown) => this.eventError.set(writeError(error, 'Could not add this event')),
@@ -366,16 +349,14 @@ export class AdminContent {
   addImage(): void {
     this.imageError.set('');
     this.imageMessage.set('');
-    this.previewFailed.set(false);
-    if (!isPublicHttpUrl(this.imageDraft.src)) {
-      this.imageError.set('Enter a public HTTP or HTTPS image URL.');
+    if (!isImageSource(this.imageDraft.src)) {
+      this.imageError.set('Enter a public image URL or choose a supported image file.');
       return;
     }
     const draft = { ...this.imageDraft, src: this.imageDraft.src.trim(), alt: this.imageDraft.alt.trim(), category: this.imageDraft.category.trim() };
     this.gallery.addImage(draft).subscribe({
       next: () => {
         this.imageDraft = { src: '', alt: '', category: '' };
-        this.previewFailed.set(false);
         this.imageMessage.set('Image added to the public gallery.');
       },
       error: (error: unknown) => this.imageError.set(writeError(error, 'Could not add this image')),

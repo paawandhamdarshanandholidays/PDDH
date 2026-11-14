@@ -48,6 +48,8 @@ Expose only the API gateway to public clients. Keep Eureka and all service ports
 
 Catalog services expose public `GET`, and role-protected `POST`, `PUT`, and `DELETE` operations. CEOs, administrators, and managers may write catalog data. The booking API accepts public trip/stay requests, while booking review requires a staff-or-higher JWT. Contact-service owns both contact catalog entries and enquiry submissions; listing enquiries and changing their status requires a staff-or-higher JWT.
 
+The trips, temples, places, events, stays, offers, and gallery services accept either an HTTP(S) image URL or a base64-encoded PNG, JPEG, GIF, or WebP upload of up to 5 MB. Uploaded bytes are stored in the owning content database and served through the corresponding `/api/catalog/{type}/{id}/image` endpoint; the existing public image URL shape remains unchanged. Stays use the public `/api/catalog/hotels` route. Admin, Staff, CEO, and Manager users can manage the directory at `/portal/user-directory` and the combined booking/enquiry dashboard at `/portal/management`. Customer profile events are consumed by auth-service to upsert directory entries without changing registration or profile-save flows.
+
 ## Booking choreography
 
 Booking creation persists the booking and a `booking.created` message in the same database transaction through the outbox. On startup, booking-service adds a nullable `customer_id` column to older `bookings` tables if it is missing; existing rows remain unassigned, while new bookings store the authenticated customer username. The service publishes pending outbox records to Kafka topics with Resilience4j retry and delayed re-attempts. Trips and stays consume the created topic in separate consumer groups, validate matching booking types against their own catalog database, and publish to `pddh.booking.validation-results`. Booking consumes the result and confirms or rejects the pending booking. This is a choreography saga; there is no central saga orchestrator.
@@ -82,7 +84,7 @@ The backend Dockerfile creates `/var/log/pawandhamdarshanandholidays_log` for co
 
 Native/AOT builds disable Spring Cloud refresh scope during AOT processing (`spring.cloud.refresh.enabled=false`) because refresh-scoped Eureka clients are not supported by Spring AOT; Eureka configuration is startup-only in the generated image.
 
-Build all backend services from the backend root with Maven:
+Build all backend services from the backend root with JDK 25 LTS and Maven:
 
 ```powershell
 cd backend

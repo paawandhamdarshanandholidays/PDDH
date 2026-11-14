@@ -26,3 +26,21 @@ export function isPublicHttpUrl(value: string): boolean {
     return false;
   }
 }
+
+export function isImageSource(value: string): boolean {
+  return isPublicHttpUrl(value) || value.startsWith('data:image/');
+}
+
+export function resolveCatalogImageUrl(value: string, apiUrl = getApiBaseUrl()): string {
+  if (!value.startsWith('/api/catalog/')) return value;
+  try {
+    const resolved = new URL(value, apiUrl);
+    if (resolved.origin === new URL(apiUrl).origin
+        && /^\/api\/catalog\/[a-z-]+\/[0-9a-f-]+\/image$/i.test(resolved.pathname)) {
+      return resolved.toString();
+    }
+  } catch {
+    return value;
+  }
+  return value;
+}

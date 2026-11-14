@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.pddh.contentvalidation.DatabaseImage;
+import com.pddh.contentvalidation.ImagePayloadSupport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +37,7 @@ public class ContentService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> list() {
-        return repository.findAllByTypeOrderByIdAsc(configuredType).stream().map(this::read).toList();
+        return repository.findSummariesByType(configuredType).stream().map(this::read).toList();
     }
 
     @Transactional
@@ -47,9 +49,10 @@ public class ContentService {
         ContentItem item = new ContentItem();
         item.setId(id);
         item.setType(configuredType);
+        item.setImages(ImagePayloadSupport.prepareForStorage(payload, configuredType, id, null));
         item.setPayload(write(payload));
         repository.saveAndFlush(item);
-        return content;
+        return ImagePayloadSupport.response(read(item), configuredType, id, item.getImages() != null);
     }
 
     @Transactional
@@ -59,9 +62,22 @@ public class ContentService {
         Map<String, Object> content = new LinkedHashMap<>(input);
         content.put("id", id);
         ObjectNode payload = requireObject(objectMapper.valueToTree(content));
+        item.setImages(ImagePayloadSupport.prepareForStorage(payload, configuredType, id, item.getImages()));
         item.setPayload(write(payload));
         repository.saveAndFlush(item);
-        return content;
+        return ImagePayloadSupport.response(read(item), configuredType, id, item.getImages() != null);
+    }
+
+    @Transactional(readOnly = true)
+    public DatabaseImage image(String id) {
+        ContentItem item = repository.findByIdAndType(id, configuredType)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Content item not found"));
+        byte[] image = item.getImages();
+        String mediaType = DatabaseImage.detectMediaType(image);
+        if (mediaType == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No uploaded image found");
+        }
+        return new DatabaseImage(mediaType, image);
     }
 
     @Transactional
@@ -78,9 +94,18 @@ public class ContentService {
         return (ObjectNode) input.deepCopy();
     }
 
+    private Map<String, Object> read(ContentItemRepository.ContentItemSummary item) {
+        return read(item.getPayload(), item.getId(), false);
+    }
+
     private Map<String, Object> read(ContentItem item) {
+        return read(item.getPayload(), item.getId(), item.getImages() != null);
+    }
+
+    private Map<String, Object> read(String payload, String id, boolean hasImage) {
         try {
-            return objectMapper.readValue(item.getPayload(), new TypeReference<>() {});
+            Map<String, Object> content = objectMapper.readValue(payload, new TypeReference<>() {});
+            return ImagePayloadSupport.response(content, configuredType, id, hasImage);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Stored content is invalid", exception);
         }

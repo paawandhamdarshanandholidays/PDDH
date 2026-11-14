@@ -5,6 +5,7 @@ import { Offer, OfferDraft } from '../models/offer.model';
 import { getApiBaseUrl } from './api-url';
 import { AuthService } from './auth.service';
 import { IdempotencySubmission } from './idempotency-key';
+import { isImageSource, resolveCatalogImageUrl } from './image-url.service';
 
 @Injectable({ providedIn: 'root' })
 export class OfferService {
@@ -26,12 +27,18 @@ export class OfferService {
   }
 
   addOffer(draft: OfferDraft): Observable<Offer> {
+    if (draft.imageUrl && !isImageSource(draft.imageUrl)) {
+      return throwError(() => new Error('Image values must be public HTTP or HTTPS URLs.'));
+    }
     return defer(() => this.http.post<unknown>(`${this.apiUrl}/api/catalog/offers`, draft, {
       headers: new HttpHeaders({ 'Idempotency-Key': this.submission.forPayload(draft) }),
     })).pipe(
       map((value) => {
         if (!isOffer(value)) throw new Error('The saved offer response has an invalid format.');
-        return value;
+        return {
+          ...value,
+          imageUrl: value.imageUrl ? resolveCatalogImageUrl(value.imageUrl, this.apiUrl) : undefined,
+        };
       }),
       tap((offer) => {
         this.offerState.set([offer, ...this.offerState()]);
@@ -55,7 +62,10 @@ export class OfferService {
     ).subscribe({
       next: (value) => {
         if (Array.isArray(value) && value.every(isOffer)) {
-          this.offerState.set(value);
+          this.offerState.set(value.map((offer) => ({
+            ...offer,
+            imageUrl: offer.imageUrl ? resolveCatalogImageUrl(offer.imageUrl, this.apiUrl) : undefined,
+          })));
         } else {
           console.error('Could not load offers: the catalog response has an invalid format.');
         }
@@ -75,5 +85,6 @@ function isOffer(value: unknown): value is Offer {
     && typeof offer['discountPercent'] === 'number'
     && typeof offer['validUntil'] === 'string'
     && typeof offer['tripId'] === 'string'
+    && (offer['imageUrl'] === undefined || typeof offer['imageUrl'] === 'string')
     && typeof offer['active'] === 'boolean';
 }

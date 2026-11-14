@@ -16,16 +16,22 @@ const roleCopy: Record<UserRole, { title: string; subtitle: string; actions: Das
     { title: 'Website content', description: 'Manage temples, places, hotels, events, offers and gallery images.', link: '/admin/content', label: 'Manage content' },
     { title: 'Team profiles', description: 'Create and manage manager, staff and customer accounts.', link: '/portal/users', label: 'Manage profiles' },
     { title: 'Customer bookings', description: 'Review incoming trip and stay requests.', link: '/portal/bookings', label: 'Review bookings' },
+    { title: 'Bookings, enquiries & contact', description: 'Search customer requests and manage their status.', link: '/portal/management', label: 'Manage enquiries' },
+    { title: 'User directory', description: 'Review customer contact details and add manual records.', link: '/portal/user-directory', label: 'Open directory' },
   ] },
   MANAGER: { title: 'Manager dashboard', subtitle: 'Manage day-to-day journeys, customer service and staff profiles.', actions: [
     { title: 'Trips & journeys', description: 'Keep trip information and featured journeys current.', link: '/admin/trips', label: 'Manage trips' },
     { title: 'Website content', description: 'Update destinations, stays, events, offers and images.', link: '/admin/content', label: 'Manage content' },
     { title: 'Staff & customer profiles', description: 'Create and manage accounts below the manager role.', link: '/portal/users', label: 'Manage profiles' },
     { title: 'Customer bookings', description: 'Confirm or reject trip and stay requests.', link: '/portal/bookings', label: 'Review bookings' },
+    { title: 'Bookings, enquiries & contact', description: 'Search customer requests and manage their status.', link: '/portal/management', label: 'Manage enquiries' },
+    { title: 'User directory', description: 'Review customer contact details and add manual records.', link: '/portal/user-directory', label: 'Open directory' },
   ] },
   STAFF: { title: 'Staff dashboard', subtitle: 'Support travellers and keep customer profiles up to date.', actions: [
     { title: 'Customer profiles', description: 'Create and manage customer accounts only.', link: '/portal/users', label: 'Manage customers' },
     { title: 'Customer bookings', description: 'Review and update trip and stay reservation requests.', link: '/portal/bookings', label: 'Review bookings' },
+    { title: 'Bookings, enquiries & contact', description: 'Search customer requests and manage their status.', link: '/portal/management', label: 'Manage enquiries' },
+    { title: 'User directory', description: 'Review customer contact details and add manual records.', link: '/portal/user-directory', label: 'Open directory' },
     { title: 'Browse journeys', description: 'Explore trips and offers available to customers.', link: '/places', label: 'View journeys' },
   ] },
   CUSTOMER: { title: 'Traveller dashboard', subtitle: 'Your account, your plans and your next meaningful journey.', actions: [

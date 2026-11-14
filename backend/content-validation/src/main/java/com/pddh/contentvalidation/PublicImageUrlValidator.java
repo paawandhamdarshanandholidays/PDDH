@@ -67,20 +67,33 @@ public final class PublicImageUrlValidator {
     }
 
     private static void validateImageValue(JsonNode value) {
-        if (!value.isTextual() || value.asText().isBlank() || value.asText().length() > 4096) {
+        if (!value.isTextual() || value.asText().isBlank()
+                || value.asText().length() > DatabaseImage.MAX_DATA_URL_LENGTH) {
             throw invalidImageUrl();
         }
         validateImageUrl(value.asText());
     }
 
     private static void validateImageValue(Object value) {
-        if (!(value instanceof String imageUrl) || imageUrl.isBlank() || imageUrl.length() > 4096) {
+        if (!(value instanceof String imageUrl) || imageUrl.isBlank()
+                || imageUrl.length() > DatabaseImage.MAX_DATA_URL_LENGTH) {
             throw invalidImageUrl();
         }
         validateImageUrl(imageUrl);
     }
 
     private static void validateImageUrl(String imageUrl) {
+        if (imageUrl.startsWith("data:")) {
+            try {
+                DatabaseImage.decodeDataUrl(imageUrl);
+                return;
+            } catch (IllegalArgumentException exception) {
+                throw invalidImageUrl();
+            }
+        }
+        if (imageUrl.length() > 4096) {
+            throw invalidImageUrl();
+        }
         try {
             URI uri = URI.create(imageUrl.trim());
             String scheme = uri.getScheme();

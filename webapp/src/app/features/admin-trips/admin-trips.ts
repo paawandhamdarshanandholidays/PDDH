@@ -3,7 +3,8 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Trip, TripDraft } from '../../core/models/trip.model';
 import { TripService } from '../../core/services/trip.service';
-import { isPublicHttpUrl } from '../../core/services/image-url.service';
+import { isImageSource } from '../../core/services/image-url.service';
+import { ImageSourceField } from '../../shared/components/image-source-field/image-source-field';
 
 const emptyDraft = (): TripDraft => ({
   title: '',
@@ -20,7 +21,7 @@ const emptyDraft = (): TripDraft => ({
 @Component({
   selector: 'app-admin-trips',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, CurrencyPipe, DatePipe, ImageSourceField],
   template: `
     <section class="admin-page">
       <div class="admin-heading"><div><p class="eyebrow">Staff workspace</p><h1>Manage journeys</h1><p>Add new trips or update the details visitors see on the website.</p></div><span class="admin-count">{{ trips.trips().length }} journeys</span></div>
@@ -32,12 +33,8 @@ const emptyDraft = (): TripDraft => ({
           <label>Journey title<input name="title" [(ngModel)]="draft.title" required maxlength="80" placeholder="e.g. Varanasi Spiritual Journey"></label>
           <label>Destination<input name="destination" [(ngModel)]="draft.destination" required maxlength="100" placeholder="City, state"></label>
           <label>Short description<textarea name="summary" [(ngModel)]="draft.summary" required maxlength="260" rows="3" placeholder="What makes this journey special?"></textarea></label>
-          <label>Cover image URL<input name="imageUrl" [(ngModel)]="draft.imageUrl" (ngModelChange)="imagePreviewFailed.set(false)" required type="text" placeholder="https://…"></label>
-          <div class="gallery-preview" [class.gallery-preview--empty]="!draft.imageUrl">
-            @if (draft.imageUrl) { <img [src]="draft.imageUrl" [alt]="draft.destination || 'Journey image preview'" (error)="imagePreviewFailed.set(true)"> @if (imagePreviewFailed()) { <span>Image preview could not be loaded. Check the URL.</span> } }
-            @else { <span>Image preview will appear here</span> }
-          </div>
-          <p class="form-hint">Provide a public HTTP or HTTPS image URL. Only the URL is saved in the trips database.</p>
+          <app-image-source-field name="imageUrl" [(ngModel)]="draft.imageUrl" label="Cover image" [altText]="draft.destination || 'Journey image preview'" required />
+          <p class="form-hint">Paste a public image URL or upload an image. Uploaded files are stored in the trips database.</p>
           <div class="form-row"><label>Departure date<input name="startDate" [(ngModel)]="draft.startDate" required type="date"></label><label>Duration (days)<input name="durationDays" [(ngModel)]="draft.durationDays" required type="number" min="1" max="60"></label></div>
           <div class="form-row"><label>Price per person (₹)<input name="price" [(ngModel)]="draft.price" required type="number" min="0"></label><label>Category<select name="category" [(ngModel)]="draft.category"><option>Pilgrimage</option><option>Heritage</option><option>Nature</option></select></label></div>
           <label class="checkbox-label"><input name="featured" [(ngModel)]="draft.featured" type="checkbox"> Feature this journey on the home page</label>
@@ -61,7 +58,6 @@ export class AdminTrips {
   readonly editingId = signal<string | null>(null);
   readonly message = signal('');
   readonly error = signal('');
-  readonly imagePreviewFailed = signal(false);
   readonly saving = signal(false);
   draft: TripDraft = emptyDraft();
 
@@ -70,8 +66,8 @@ export class AdminTrips {
   save(): void {
     this.message.set('');
     this.error.set('');
-    if (!isPublicHttpUrl(this.draft.imageUrl)) {
-      this.error.set('Enter a public HTTP or HTTPS image URL.');
+    if (!isImageSource(this.draft.imageUrl)) {
+      this.error.set('Enter a public HTTP or HTTPS image URL or choose a supported image file.');
       return;
     }
     const draft = { ...this.draft, imageUrl: this.draft.imageUrl.trim() };
@@ -82,7 +78,6 @@ export class AdminTrips {
       next: () => {
         this.saving.set(false);
         this.message.set(id ? 'Journey updated successfully.' : 'Journey added successfully.');
-        this.imagePreviewFailed.set(false);
         this.reset();
       },
       error: (error: unknown) => {
@@ -124,6 +119,5 @@ export class AdminTrips {
   reset(): void {
     this.draft = emptyDraft();
     this.editingId.set(null);
-    this.imagePreviewFailed.set(false);
   }
 }

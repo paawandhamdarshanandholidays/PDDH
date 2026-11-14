@@ -5,7 +5,7 @@ import { Hotel, HotelDraft } from '../models/hotel.model';
 import { getApiBaseUrl } from './api-url';
 import { AuthService } from './auth.service';
 import { IdempotencySubmission } from './idempotency-key';
-import { isPublicHttpUrl } from './image-url.service';
+import { isImageSource, resolveCatalogImageUrl } from './image-url.service';
 
 @Injectable({ providedIn: 'root' })
 export class HotelService {
@@ -26,7 +26,7 @@ export class HotelService {
   }
 
   addHotel(draft: HotelDraft): Observable<Hotel> {
-    if (!isPublicHttpUrl(draft.imageUrl)) {
+    if (!isImageSource(draft.imageUrl)) {
       return throwError(() => new Error('Image values must be public HTTP or HTTPS URLs.'));
     }
     return defer(() => this.http.post<unknown>(`${this.apiUrl}/api/catalog/hotels`, draft, {
@@ -34,7 +34,7 @@ export class HotelService {
     })).pipe(
       map((value) => {
         if (!isHotel(value)) throw new Error('The saved accommodation response has an invalid format.');
-        return value;
+        return { ...value, imageUrl: resolveCatalogImageUrl(value.imageUrl, this.apiUrl) };
       }),
       tap((hotel) => {
         this.hotelState.set([hotel, ...this.hotelState()]);
@@ -58,7 +58,10 @@ export class HotelService {
     ).subscribe({
       next: (value) => {
         if (Array.isArray(value) && value.every(isHotel)) {
-          this.hotelState.set(value);
+          this.hotelState.set(value.map((hotel) => ({
+            ...hotel,
+            imageUrl: resolveCatalogImageUrl(hotel.imageUrl, this.apiUrl),
+          })));
         } else {
           console.error('Could not load accommodation: the catalog response has an invalid format.');
         }

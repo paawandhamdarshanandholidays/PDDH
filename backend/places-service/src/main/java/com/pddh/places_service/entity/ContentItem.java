@@ -23,4 +23,7 @@ public class ContentItem {
 
     @Column(nullable = false, columnDefinition = "text")
     private String payload;
+
+    @Column(name = "images", columnDefinition = "bytea")
+    private byte[] images;
 }

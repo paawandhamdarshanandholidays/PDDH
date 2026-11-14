@@ -39,6 +39,13 @@ class PublicImageUrlValidatorTest {
     }
 
     @Test
+    void acceptsValidBase64ImageUploads() throws Exception {
+        assertDoesNotThrow(() -> PublicImageUrlValidator.validate(objectMapper.readTree("""
+                {"imageUrl":"data:image/png;base64,iVBORw0KGgo="}
+                """)));
+    }
+
+    @Test
     void validatesImageUrlsInMapRequestBodies() {
         assertDoesNotThrow(() -> PublicImageUrlValidator.validate(Map.of(
                 "images", List.of("https://images.example.org/photo.jpg"),

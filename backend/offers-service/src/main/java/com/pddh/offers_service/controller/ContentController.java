@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.pddh.contentvalidation.PublicImageUrlValidator;
+import com.pddh.contentvalidation.DatabaseImage;
 import com.pddh.offers_service.security.ContentIdentityService;
 import com.pddh.offers_service.service.ContentService;
 import com.pddh.offers_service.api_common.resilience.RateLimitGuard;
@@ -47,6 +49,15 @@ public class ContentController {
     @GetMapping
     public List<Map<String, Object>> list() {
         return contentService.list();
+    }
+
+    @GetMapping("/{id}/image")
+    public ResponseEntity<byte[]> image(@PathVariable String id) {
+        DatabaseImage image = contentService.image(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.mediaType()))
+                .header("Cache-Control", "public, max-age=3600")
+                .body(image.bytes());
     }
 
     @PostMapping

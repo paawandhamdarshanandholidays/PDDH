@@ -5,7 +5,7 @@ import { GalleryImage } from '../models/content.model';
 import { getApiBaseUrl } from './api-url';
 import { AuthService } from './auth.service';
 import { IdempotencySubmission } from './idempotency-key';
-import { isPublicHttpUrl } from './image-url.service';
+import { isImageSource, resolveCatalogImageUrl } from './image-url.service';
 
 @Injectable({ providedIn: 'root' })
 export class GalleryService {
@@ -27,7 +27,7 @@ export class GalleryService {
   }
 
   addImage(draft: Omit<GalleryImage, 'id'>): Observable<GalleryImage> {
-    if (!isPublicHttpUrl(draft.src)) {
+    if (!isImageSource(draft.src)) {
       return throwError(() => new Error('Image values must be public HTTP or HTTPS URLs.'));
     }
     return defer(() => this.http.post<unknown>(`${this.apiUrl}/api/catalog/gallery`, draft, {
@@ -35,7 +35,7 @@ export class GalleryService {
     })).pipe(
       map((value) => {
         if (!isGalleryImage(value)) throw new Error('The saved gallery image response has an invalid format.');
-        return value;
+        return { ...value, src: resolveCatalogImageUrl(value.src, this.apiUrl) };
       }),
       tap((image) => {
         this.imageState.set([image, ...this.imageState()]);
@@ -59,7 +59,10 @@ export class GalleryService {
     ).subscribe({
       next: (value) => {
         if (Array.isArray(value) && value.every(isGalleryImage)) {
-          this.imageState.set(value);
+          this.imageState.set(value.map((image) => ({
+            ...image,
+            src: resolveCatalogImageUrl(image.src, this.apiUrl),
+          })));
         } else {
           console.error('Could not load gallery images: the catalog response has an invalid format.');
         }
