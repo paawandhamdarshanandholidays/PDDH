@@ -28,7 +28,7 @@ export function isPublicHttpUrl(value: string): boolean {
 }
 
 export function isImageSource(value: string): boolean {
-  return isPublicHttpUrl(value) || value.startsWith('data:image/');
+  return isPublicHttpUrl(value);
 }
 
 export function resolveCatalogImageUrl(value: string, apiUrl = getApiBaseUrl()): string {
