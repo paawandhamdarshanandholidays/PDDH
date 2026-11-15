@@ -7,7 +7,7 @@ RUN mkdir -p /var/log/pawandhamdarshanandholidays_log \
 VOLUME ["/var/log/pawandhamdarshanandholidays_log"]
 ENV PAWANDHAM_LOG_ROOT=/var/log/pawandhamdarshanandholidays_log
 ENV KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
-ENV JAVA_TOOL_OPTIONS="-Xms64m -Xmx512m -XX:+ExitOnOutOfMemoryError"
+ENV JAVA_TOOL_OPTIONS="-XX:+UseSerialGC -Xms128m -Xmx320m -XX:TieredCompilation -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError"
 USER 10001
 
 EXPOSE 8080

@@ -127,8 +127,18 @@ spring:
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
 
+springdoc:
+  swagger-ui:
+    enabled: false
+
 eureka:
   client:
     enabled: false
     register-with-eureka: false
     fetch-registry: false
+
+app:
+  gateway:
+    internal-token: ${APP_GATEWAY_INTERNAL_TOKEN}
+  jwt:
+    secret: ${JWT_SECRET}
