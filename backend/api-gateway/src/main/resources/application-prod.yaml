@@ -1,112 +1,127 @@
 server:
-  port: ${GATEWAY_PORT:9091}
+  port: ${PORT:8080}
 
 spring:
   cloud:
     gateway:
       server:
         webmvc:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - "${FRONTEND_URL:https://pawandhamdarshanandholidays.vercel.app}"
+                  - "http://localhost:4200"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+                allowCredentials: true
           routes:
             - id: auth-service
-              uri: ${AUTH_SERVICE_URL:lb://auth-service}
+              uri: ${AUTH_SERVICE_URL}
               predicates:
                 - Path=/auth/**
               filters:
                 - AddRequestHeader=X-Gateway-Request, true
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: user-service
-              uri: ${AUTH_SERVICE_URL:lb://auth-service}
+              uri: ${AUTH_SERVICE_URL}
               predicates:
                 - Path=/api/users/**
               filters:
                 - AddRequestHeader=X-Gateway-Request, true
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: temples-service
-              uri: ${TEMPLES_SERVICE_URL:lb://temples-service}
+              uri: ${TEMPLES_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/temples/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: places-service
-              uri: ${PLACES_SERVICE_URL:lb://places-service}
+              uri: ${PLACES_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/places/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: events-service
-              uri: ${EVENTS_SERVICE_URL:lb://events-service}
+              uri: ${EVENTS_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/events/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: offers-service
-              uri: ${OFFERS_SERVICE_URL:lb://offers-service}
+              uri: ${OFFERS_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/offers/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: gallery-service
-              uri: ${GALLERY_SERVICE_URL:lb://gallery-service}
+              uri: ${GALLERY_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/gallery/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: contact-service
-              uri: ${CONTACT_SERVICE_URL:lb://contact-service}
+              uri: ${CONTACT_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/contact/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: trips-service
-              uri: ${TRIPS_SERVICE_URL:lb://trips-service}
+              uri: ${TRIPS_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/trips/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: stays-service
-              uri: ${STAYS_SERVICE_URL:lb://stays-service}
+              uri: ${STAYS_SERVICE_URL}
               predicates:
                 - Path=/api/catalog/hotels/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: booking-service
-              uri: ${BOOKING_SERVICE_URL:lb://booking-service}
+              uri: ${BOOKING_SERVICE_URL}
               predicates:
                 - Path=/api/bookings/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: contact-enquiries
-              uri: ${CONTACT_SERVICE_URL:lb://contact-service}
+              uri: ${CONTACT_SERVICE_URL}
               predicates:
                 - Path=/api/enquiries/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: ceo-service
-              uri: ${CEO_SERVICE_URL:lb://ceo-service}
+              uri: ${CEO_SERVICE_URL}
               predicates:
                 - Path=/api/roles/ceo/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: admin-service
-              uri: ${ADMIN_SERVICE_URL:lb://admin-service}
+              uri: ${ADMIN_SERVICE_URL}
               predicates:
                 - Path=/api/roles/admin/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: manager-service
-              uri: ${MANAGER_SERVICE_URL:lb://manager-service}
+              uri: ${MANAGER_SERVICE_URL}
               predicates:
                 - Path=/api/roles/manager/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: staff-service
-              uri: ${STAFF_SERVICE_URL:lb://staff-service}
+              uri: ${STAFF_SERVICE_URL}
               predicates:
                 - Path=/api/roles/staff/**
               filters:
                 - SetRequestHeader=X-Internal-Gateway-Token, ${app.gateway.internal-token}
             - id: customer-service
-              uri: ${CUSTOMER_SERVICE_URL:lb://customer-service}
+              uri: ${CUSTOMER_SERVICE_URL}
               predicates:
                 - Path=/api/roles/customer/**
               filters:
@@ -114,13 +129,6 @@ spring:
 
 eureka:
   client:
-    service-url:
-      defaultZone: ${EUREKA_URL}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
-
-app:
-  jwt:
-    secret: ${JWT_SECRET}
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
