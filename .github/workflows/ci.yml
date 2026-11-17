@@ -43,7 +43,7 @@ jobs:
           cache: maven
           cache-dependency-path: |
             backend/pom.xml
-            backend/pddh-backend/pom.xml
+            backend/pom.xml
       - name: Verify the monolith
         working-directory: backend
         run: bash ./mvnw -B clean verify
@@ -52,6 +52,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pddh-backend-jar
-          path: backend/pddh-backend/target/pddh-backend-*.jar
+          path: backend/target/pddh-backend-*.jar
           if-no-files-found: error
           retention-days: 1

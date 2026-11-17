@@ -9,7 +9,7 @@ spring:
   application:
     name: pddh-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/pddh_monolith}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pddh}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver

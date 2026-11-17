@@ -1,12 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
 $backendDirectory = $PSScriptRoot
-$backendJar = Join-Path $backendDirectory 'pddh-backend\target\pddh-backend-0.0.1-SNAPSHOT.jar'
+$backendJar = Join-Path $backendDirectory 'target\pddh-backend-0.0.1-SNAPSHOT.jar'
 
 if (-not (Test-Path -LiteralPath $backendJar -PathType Leaf)) {
     Push-Location $backendDirectory
     try {
-        & .\mvnw.cmd -f pom.xml -pl pddh-backend package -DskipTests
+        & .\mvnw.cmd -f pom.xml package -DskipTests
         if ($LASTEXITCODE -ne 0) {
             throw "PDDH backend build failed with exit code $LASTEXITCODE."
         }

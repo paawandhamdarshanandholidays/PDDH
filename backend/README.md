@@ -1,30 +1,30 @@
 # PDDH Backend
 
-The backend is one Spring Boot application, built as one executable JAR and served on port `9091`. Controllers, business services, repositories, and persistence entities from the former services are compiled into `pddh-backend`. Business workflows use in-process Spring service calls; Kafka, Eureka, and the API Gateway are not part of the application.
+The backend is one Spring Boot application, built as one executable JAR and served on port `9091`. Controllers, business services, repositories, and persistence entities from the former services are compiled directly in this project. Business workflows use in-process Spring service calls; Kafka, Eureka, and the API Gateway are not part of the application.
 
 ## Local development
 
 Requirements: JDK 25, PostgreSQL, and PowerShell.
 
-Create a fresh PostgreSQL database named `pddh_monolith`, then from this directory run:
+The application uses the existing PostgreSQL database `pddh`. Existing per-microservice databases are left untouched. From this directory run:
 
 ```powershell
-.\mvnw.cmd -pl pddh-backend package
+.\mvnw.cmd package
 .\run-backend.ps1
 ```
 
-By default the application connects to `jdbc:postgresql://localhost:5432/pddh_monolith` as `postgres` / `postgres` and listens on `http://localhost:9091`. Configure these environment variables as needed:
+By default the application connects to `jdbc:postgresql://localhost:5432/pddh` as `postgres` / `postgres` and listens on `http://localhost:9091`. Configure these environment variables as needed:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SERVER_PORT` | `9091` | HTTP port |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/pddh_monolith` | PostgreSQL JDBC URL |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/pddh` | PostgreSQL JDBC URL |
 | `DB_USERNAME` / `DB_PASSWORD` | `postgres` | Database credentials |
 | `JWT_SECRET` | Local-development-only value | JWT signing secret; set a unique secret outside local development |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Comma-separated frontend origins |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Empty/default SMTP settings | Password-reset email delivery |
 
-Hibernate updates tables at startup. The monolith expects a fresh database; records in the previous per-service databases are not copied automatically.
+Hibernate updates tables at startup. Existing per-service databases are not migrated, modified, or deleted by the monolith.
 
 ## API
 
@@ -44,7 +44,7 @@ Public catalog reads, login, registration, and enquiry submissions remain public
 Build the JAR first, then build the image from this directory:
 
 ```powershell
-.\mvnw.cmd -pl pddh-backend package
+.\mvnw.cmd package
 docker build -t pddh-backend -f Dockerfile .
 ```
 
