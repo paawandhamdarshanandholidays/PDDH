@@ -1,0 +1,104 @@
+server:
+  port: ${SERVER_PORT:9091}
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:40}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN_SPARE:4}
+
+spring:
+  application:
+    name: pddh-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pddh_monolith}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  task:
+    scheduling:
+      pool:
+        size: 2
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:development-only-change-this-secret-32-bytes-minimum}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+  idempotency:
+    scope-secret: ${IDEMPOTENCY_SCOPE_SECRET:${app.jwt.secret}}
+  mail:
+    from: ${SMTP_FROM:}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  role:
+    ceo:
+      expected: CEO
+      path: /api/roles/ceo
+      display-name: CEO
+      hierarchy: CEO > ADMIN > MANAGER > STAFF > CUSTOMER
+      capabilities: [full-organization-control, manage-all-roles, manage-content, manage-bookings, view-enquiries]
+    admin:
+      expected: ADMIN
+      path: /api/roles/admin
+      display-name: Administrator
+      hierarchy: CEO > ADMIN > MANAGER > STAFF > CUSTOMER
+      capabilities: [manage-junior-roles, create-admin-peer, manage-content, manage-bookings, view-enquiries]
+    manager:
+      expected: MANAGER
+      path: /api/roles/manager
+      display-name: Manager
+      hierarchy: CEO > ADMIN > MANAGER > STAFF > CUSTOMER
+      capabilities: [manage-staff-and-customers, manage-content, manage-bookings]
+    staff:
+      expected: STAFF
+      path: /api/roles/staff
+      display-name: Staff
+      hierarchy: CEO > ADMIN > MANAGER > STAFF > CUSTOMER
+      capabilities: [manage-customer-profiles, review-bookings, view-travel-content]
+    customer:
+      expected: CUSTOMER
+      path: /api/roles/customer
+      display-name: Customer
+      hierarchy: CEO > ADMIN > MANAGER > STAFF > CUSTOMER
+      capabilities: [manage-own-profile, request-bookings, view-public-content]
+
+management:
+  health:
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.pddh: INFO

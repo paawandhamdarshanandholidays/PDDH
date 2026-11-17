@@ -1,0 +1,25 @@
+# Backend ignore rules
+
+# Maven / Java build output
+target/
+**/target/
+*.class
+*.log
+
+# Packaged artifacts
+*.jar
+*.war
+*.ear
+
+# Local IDE / editor files
+.metadata/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,23 @@
+<section class="page-hero page-hero--contact"><p class="eyebrow eyebrow--light">We’re here to help</p><h1>Let’s talk journeys</h1><p>Questions, a special request or just a little inspiration — send us a note.</p></section>
+<section class="section contact-layout">
+  <div class="contact-copy"><p class="eyebrow">Get in touch</p><h2>Every good journey starts with a conversation.</h2><p>Tell us where you would like to go and what matters to you. Our team will help you take the next step.</p>
+    @for (details of contactDetails.items(); track details.id) {
+      <div class="contact-detail"><span class="contact-icon">✆</span><div><strong>Call our team</strong><a [href]="'tel:' + phoneLink(details.phone)">{{ details.phone }}</a></div></div>
+      <div class="contact-detail"><span class="contact-icon">✉</span><div><strong>Email us</strong><a [href]="'mailto:' + details.email">{{ details.email }}</a></div></div>
+      <div class="contact-detail"><span class="contact-icon">⌖</span><div><strong>Office hours</strong><span>{{ details.officeHours }}</span></div></div>
+    } @empty {
+      <p role="status">Our contact details are currently unavailable. Please try again later.</p>
+    }
+  </div>
+  <form class="form-card" (ngSubmit)="submit()" #contactForm="ngForm">
+    @if (sent()) { <div class="notice notice--success" role="status">Thank you, {{ submittedName() }}. Your enquiry was sent to our team.</div> }
+    @if (error()) { <div class="notice notice--error" role="alert">{{ error() }}</div> }
+    <label>Your name<input name="name" [(ngModel)]="name" required autocomplete="name" placeholder="How should we address you?"></label>
+    <label>Email address<input name="email" [(ngModel)]="email" required type="email" autocomplete="email" placeholder="you@example.com"></label>
+    <label>Phone number<input name="phone" [(ngModel)]="phone" required type="tel" autocomplete="tel" placeholder="+91 98765 43210"></label>
+    <label>Subject<input name="subject" [(ngModel)]="subject" maxlength="160" placeholder="Trip, stay or general question"></label>
+    <label>What’s on your mind?<textarea name="message" [(ngModel)]="message" required rows="5" placeholder="Tell us a little about your plans..."></textarea></label>
+    <button class="button" type="submit" [disabled]="contactForm.invalid || submitting()">{{ submitting() ? 'Sending…' : 'Send your message' }} <span aria-hidden="true">→</span></button>
+    <p class="form-hint">Your enquiry is sent securely to our customer care team.</p>
+  </form>
+</section>

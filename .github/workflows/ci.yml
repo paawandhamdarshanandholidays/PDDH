@@ -1,0 +1,57 @@
+name: CI Pipeline (Angular + Spring Boot monolith)
+
+on:
+  push:
+    branches:
+      - master
+      - release
+      - integration
+      - develop
+      - 'feature/*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci --ignore-scripts
+      - name: Build frontend
+        working-directory: webapp
+        run: npm run build -- --configuration production
+      - name: Test frontend
+        working-directory: webapp
+        run: npm test -- --watch=false
+
+  build-backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/pddh-backend/pom.xml
+      - name: Verify the monolith
+        working-directory: backend
+        run: bash ./mvnw -B clean verify
+      - name: Upload the backend JAR
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pddh-backend-jar
+          path: backend/pddh-backend/target/pddh-backend-*.jar
+          if-no-files-found: error
+          retention-days: 1

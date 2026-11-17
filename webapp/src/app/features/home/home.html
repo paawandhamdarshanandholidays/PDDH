@@ -1,0 +1,48 @@
+<section class="hero">
+  <div class="hero__backdrop"></div>
+  <div class="hero__content">
+    <p class="eyebrow eyebrow--light">A journey rooted in devotion</p>
+    <h1>Come closer to<br><em>what matters.</em></h1>
+    <p class="hero__intro">Discover India's sacred places with thoughtful planning, local care and room for your own moments of wonder.</p>
+    <div class="hero__actions"><a class="button" routerLink="/places">Discover our journeys <span aria-hidden="true">→</span></a><a class="hero__secondary" routerLink="/about">Our story</a></div>
+  </div>
+  <span class="hero__caption">Varanasi · Uttar Pradesh</span>
+</section>
+
+<section class="intro-band">
+  <span class="intro-band__symbol">✳</span>
+  <p>Travel with care. <strong>Arrive with an open heart.</strong></p>
+  <a routerLink="/contact">Let us help you plan <span aria-hidden="true">→</span></a>
+</section>
+
+<section class="section">
+  <div class="section-heading"><div><p class="eyebrow">Journeys to remember</p><h2>Find your way to wonder</h2></div><a class="text-link" routerLink="/places">All journeys <span aria-hidden="true">→</span></a></div>
+  <div class="card-grid card-grid--trips">
+    @for (trip of trips(); track trip.id) { <app-trip-card [trip]="trip" /> }
+  </div>
+  @if (!trips().length) { <p class="empty-note">New journeys are on their way. Please check back soon.</p> }
+</section>
+
+<section class="section section--tint">
+  <div class="section-heading"><div><p class="eyebrow">Places of devotion</p><h2>Stories written in stone</h2></div><a class="text-link" routerLink="/temples">Explore temples <span aria-hidden="true">→</span></a></div>
+  <div class="card-grid">@for (temple of temples(); track temple.id) { <app-temple-card [place]="temple" /> }</div>
+</section>
+
+@if (offers().length) {
+  <section class="section"><div class="section-heading"><div><p class="eyebrow">A little extra</p><h2>Current journey offers</h2></div><a class="text-link" routerLink="/offers">All offers <span aria-hidden="true">→</span></a></div>
+    <div class="offer-grid">@for (offer of offers(); track offer.id) { <app-offer-card [offer]="offer" [trip]="findTrip(offer.tripId)" /> }</div>
+  </section>
+}
+
+<section class="home-quote">
+  <p class="eyebrow eyebrow--light">More than a destination</p>
+  <blockquote>“Some journeys don't just take you places. They bring you back to yourself.”</blockquote>
+  <a class="button button--light" routerLink="/about">The Pawan Dham way</a>
+</section>
+
+<section class="section">
+  <div class="section-heading"><div><p class="eyebrow">Gather & experience</p><h2>Moments on the calendar</h2></div><a class="text-link" routerLink="/events">See all events <span aria-hidden="true">→</span></a></div>
+  <div class="card-grid">@for (event of events(); track event.id) { <app-event-card [event]="event" /> }</div>
+</section>
+
+<section class="callout"><div><p class="eyebrow eyebrow--light">Your next chapter begins here</p><h2>Let's make the journey yours.</h2></div><a class="button button--light" routerLink="/booking">Start planning <span aria-hidden="true">→</span></a></section>

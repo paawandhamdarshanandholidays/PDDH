@@ -1,0 +1,9 @@
+.site-header{position:sticky;top:0;z-index:20;background:rgba(255,253,249,.96);border-bottom:1px solid #eee8dd;backdrop-filter:blur(14px)}
+.nav-wrap{width:min(1160px,calc(100% - 40px));min-height:76px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:#29251f;flex-shrink:0}
+.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#f2e6cf;color:#9d5c1d;font-size:25px}
+.brand strong,.brand small{display:block}.brand strong{font-family:Georgia,serif;font-size:17px}.brand small{font-size:10px;letter-spacing:1.15px;text-transform:uppercase;color:#82786a;margin-top:3px}
+.main-nav{display:flex;align-items:center;gap:20px}.main-nav>a:not(.button),.nav-signout{font-family:inherit;font-size:13px;font-weight:500;color:#554c40;text-decoration:none;background:none;border:0;padding:9px 0;cursor:pointer}
+.main-nav>a:hover,.main-nav>.nav-active{color:#a85f20}.main-nav .nav-admin{border-left:1px solid #e7dfd1;padding-left:17px!important}
+.menu-toggle{display:none;border:0;background:none;color:#423b31;font-size:24px}
+@media(max-width:900px){.nav-wrap{min-height:68px}.menu-toggle{display:block}.main-nav{display:none;position:absolute;top:68px;left:0;right:0;background:#fffdf9;padding:16px 24px 22px;box-shadow:0 12px 20px #281c101a;align-items:stretch;gap:4px}.main-nav--open{display:flex;flex-direction:column}.main-nav>a:not(.button),.nav-signout{padding:10px 0}.main-nav .nav-admin{border:0;padding-left:0!important}.main-nav .button{align-self:flex-start;margin-top:8px}}

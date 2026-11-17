@@ -1,0 +1,24 @@
+<section class="page-hero page-hero--booking"><p class="eyebrow eyebrow--light">Your journey starts here</p><h1>Plan your darshan</h1><p>Share a few details and our team will help shape a visit that feels right for you.</p></section>
+<section class="section booking-layout">
+  <div class="booking-intro"><p class="eyebrow">A little help goes a long way</p><h2>Let’s make the details easy.</h2><p>From choosing a departure to understanding what to bring, we are here to make your trip comfortable and meaningful.</p>
+    @if (selectedTrip; as trip) {
+      <article class="selected-trip"><img [src]="trip.imageUrl" [alt]="trip.destination"><div><p class="eyebrow">{{ trip.destination }}</p><h3>{{ trip.title }}</h3><p>{{ trip.durationDays }} days · From {{ trip.price | currency:'INR':'symbol':'1.0-0' }}</p></div></article>
+    } @else {
+      <div class="selected-trip selected-trip--empty"><div><p class="eyebrow">Choose your journey</p><h3>Pick a trip to get started</h3><a class="text-link" routerLink="/places">Browse available trips <span aria-hidden="true">→</span></a></div></div>
+    }
+    <p class="booking-note">No payment is taken at this stage. We’ll confirm the details with you first.</p>
+  </div>
+  <form class="form-card" (ngSubmit)="submit()" #bookingForm="ngForm">
+    @if (confirmation()) { <div class="notice notice--success" role="status">{{ confirmation() }}</div> }
+    @if (error()) { <div class="notice notice--error" role="alert">{{ error() }}</div> }
+    <label>Journey<select name="trip" [ngModel]="selectedId()" (ngModelChange)="selectedId.set($event)" required>
+      <option value="">Choose a trip</option>@for (trip of trips(); track trip.id) { <option [value]="trip.id">{{ trip.title }} — {{ trip.destination }}</option> }
+    </select></label>
+    <div class="form-row"><label>Your name<input name="name" [(ngModel)]="name" required autocomplete="name" placeholder="Full name"></label><label>Guests<input name="guests" [(ngModel)]="guests" required type="number" min="1" max="20"></label></div>
+    <div class="form-row"><label>Phone number<input name="phone" [(ngModel)]="phone" required type="tel" pattern="[0-9+() -]{10,16}" autocomplete="tel" placeholder="+91 78973 21190"></label><label>Start date<input name="startDate" [(ngModel)]="startDate" [min]="minDate" required type="date"></label></div>
+    <label>End date<input name="endDate" [(ngModel)]="endDate" [min]="startDate || minDate" required type="date"></label>
+    @if (trips().length === 0) { <p class="form-hint" role="status">No journeys are available from the trips database yet.</p> }
+    <button class="button" type="submit" [disabled]="bookingForm.invalid || submitting() || !trips().length">{{ submitting() ? 'Submitting booking…' : 'Book this journey' }} <span aria-hidden="true">→</span></button>
+    <p class="form-hint">Sign in as a customer to book. The booking will be linked to your account, and the booking date is recorded automatically.</p>
+  </form>
+</section>
