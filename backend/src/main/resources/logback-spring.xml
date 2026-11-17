@@ -6,7 +6,7 @@
     </turboFilter>
 
     <springProperty scope="context" name="LOG_ROOT_DIR" source="PAWANDHAM_LOG_ROOT"
-        defaultValue="../../../PDDH_Logs"/>
+        defaultValue="../../"/>
     <property name="SERVICE_NAME" value="pddh-backend"/>
     <property name="SERVICE_LOG_DIR" value="${LOG_ROOT_DIR}/${SERVICE_NAME}_logs"/>
 

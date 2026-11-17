@@ -38,12 +38,14 @@ The existing frontend origin and API paths are retained. The Angular app default
 
 - Authentication and account management: `/auth` and `/api/users`
 - Public catalog reads: `/api/catalog/{temples,places,events,offers,gallery,contact,trips,hotels}`
-- Booking management: `/api/bookings`
+- Booking management: `/api/bookings` and paged `/api/bookings/page`
 - Role dashboards and profiles: `/api/roles/{ceo,admin,manager,staff,customer}`
-- Enquiries: `/api/enquiries`
+- Enquiries: `/api/enquiries` and paged `/api/enquiries/page`
+- User directory: `/api/users/directory` and paged `/api/users/directory/page`
 - Health: `/actuator/health`
 
 Public catalog reads, login, registration, and enquiry submissions remain public. Other protected operations require a JWT bearer token.
+Paged booking, enquiry, and directory requests accept `page`, `size`, `sort`, and `direction`; each request is capped at 50 rows. Customer booking pages are scoped to the authenticated customer. The Angular frontend uses these paged endpoints for management tables, the user directory, and the customer’s own bookings.
 
 ## Container
 

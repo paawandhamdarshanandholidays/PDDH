@@ -14,7 +14,7 @@ describe('UserManagement', () => {
 
   beforeEach(async () => {
     actorRole = 'ADMIN';
-    listRoles = vi.fn(() => of(['ADMIN', 'STAFF', 'CUSTOMER']));
+    listRoles = vi.fn(() => of(['CEO', 'ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']));
     listUsers = vi.fn((role: UserRole) => of({
       content: role === 'STAFF' ? [{
         id: 'staff-1',
@@ -52,9 +52,18 @@ describe('UserManagement', () => {
     expect(options.map((option) => option.textContent?.trim())).toEqual([
       'Choose a role',
       'Admin',
+      'Manager',
       'Staff',
       'User',
     ]);
+  });
+
+  it('allows administrators to view and register manager and staff profiles', () => {
+    for (const role of ['MANAGER', 'STAFF'] as const) {
+      fixture.componentInstance.selectRole(role);
+      expect(fixture.componentInstance.canViewSelectedRole()).toBe(true);
+      expect(fixture.componentInstance.canRegisterSelectedRole()).toBe(true);
+    }
   });
 
   it('lets managers view their permitted staff profiles using the 50-row profile page API', () => {

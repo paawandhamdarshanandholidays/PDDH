@@ -87,10 +87,7 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<UserRole> availableRoles() {
-		List<String> rolesInUse = userRepository.findDistinctActiveRoles();
-		return Arrays.stream(UserRole.values())
-				.filter(role -> rolesInUse.stream().anyMatch(role.name()::equalsIgnoreCase))
-				.toList();
+		return Arrays.stream(UserRole.values()).toList();
 	}
 
 	@Override

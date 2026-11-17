@@ -1,0 +1,73 @@
+package com.pddh.travel_service.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.pddh.travel_service.entity.Booking;
+import com.pddh.travel_service.repository.BookingRepository;
+import com.pddh.travel_service.security.TravelIdentity;
+
+class BookingPagingTest {
+    private final BookingRepository repository = mock(BookingRepository.class);
+    private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+    private final com.pddh.trips_service.service.ContentService trips =
+            mock(com.pddh.trips_service.service.ContentService.class);
+    private final com.pddh.stays_service.service.ContentService stays =
+            mock(com.pddh.stays_service.service.ContentService.class);
+    private final BookingService service = new BookingService(repository, jdbcTemplate, trips, stays);
+
+    @Test
+    void managerCanLoadSortedBookingPagesWithAtMostFiftyRows() {
+        Booking booking = new Booking();
+        booking.setId("booking-1");
+        booking.setBookingType("TRIP");
+        booking.setCustomerName("Customer");
+        booking.setEmail("customer@example.test");
+        booking.setPhone("123");
+        booking.setGuests(2);
+        booking.setBookingDate(LocalDate.now());
+        booking.setStartDate(LocalDate.now().plusDays(1));
+        booking.setStatus("PENDING");
+        booking.setCreatedAt(Instant.now());
+        when(repository.findAll(any(Pageable.class))).thenAnswer(invocation ->
+                new PageImpl<>(List.of(booking), invocation.getArgument(0), 51));
+
+        var response = service.listPage(
+                new TravelIdentity("manager", "manager@example.test", "MANAGER"),
+                0, 50, "customerName", "ASC");
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(51);
+        var pageable = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findAll(pageable.capture());
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(50);
+        assertThat(pageable.getValue().getSort().getOrderFor("customerName").getDirection())
+                .isEqualTo(Sort.Direction.ASC);
+    }
+
+    @Test
+    void customerPageIsScopedToTheAuthenticatedCustomer() {
+        TravelIdentity customer = new TravelIdentity("traveller", "customer@example.test", "CUSTOMER");
+        when(repository.findAllByCustomerId(eq(customer.username()), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), org.springframework.data.domain.PageRequest.of(0, 25), 0));
+
+        var response = service.listPage(customer, 0, 25, "createdAt", "DESC");
+
+        assertThat(response.content()).isEmpty();
+        verify(repository).findAllByCustomerId(eq(customer.username()), any(Pageable.class));
+    }
+}
