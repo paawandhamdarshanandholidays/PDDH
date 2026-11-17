@@ -13,6 +13,12 @@ The application uses the existing PostgreSQL database `pddh`. Existing per-micro
 .\run-backend.ps1
 ```
 
+## Import into Eclipse
+
+Use an Eclipse workspace folder separate from this project directory. Choose **File > Import > Maven > Existing Maven Projects**, set the root directory to the repository's `backend` folder, and select `backend/pom.xml`. Configure a JDK 25 under **Preferences > Java > Installed JREs**, then run **Maven > Update Project** after import.
+
+The Eclipse project name is `pddh-backend` to avoid collisions with a generic `backend` project. Its project metadata declares both Java and Maven natures; the POM remains the source of dependency and compiler settings.
+
 By default the application connects to `jdbc:postgresql://localhost:5432/pddh` as `postgres` / `postgres` and listens on `http://localhost:9091`. Configure these environment variables as needed:
 
 | Variable | Default | Purpose |

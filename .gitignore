@@ -19,6 +19,7 @@ target/
 .project
 .classpath
 .settings/
+!/backend/.project
 .vscode/
 
 # OS files
