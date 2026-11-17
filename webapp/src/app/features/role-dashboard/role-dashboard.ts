@@ -37,6 +37,7 @@ const roleCopy: Record<UserRole, { title: string; subtitle: string; actions: Das
   CUSTOMER: { title: 'Traveller dashboard', subtitle: 'Your account, your plans and your next meaningful journey.', actions: [
     { title: 'Book a journey', description: 'Choose a trip and send a secure booking request.', link: '/booking', label: 'Explore trips' },
     { title: 'Book a stay', description: 'Choose a hotel or dharamshala and request your dates.', link: '/stay-booking', label: 'Find a stay' },
+    { title: 'My bookings', description: 'Review trip and accommodation requests already submitted.', link: '/portal/my-bookings', label: 'View bookings' },
     { title: 'My profile', description: 'Update your contact information and account details.', link: '/portal/profile', label: 'Manage profile' },
     { title: 'Current offers', description: 'See active savings on selected journeys.', link: '/offers', label: 'Explore offers' },
   ] },

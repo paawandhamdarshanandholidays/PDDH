@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { ApiPage } from '../models/api-page.model';
 import { getApiBaseUrl } from './api-url';
 import { createIdempotencyKey } from './idempotency-key';
 
@@ -41,6 +42,17 @@ export class EnquiryService {
 
   list(): Observable<EnquiryRecord[]> {
     return this.http.get<EnquiryRecord[]>(`${this.apiUrl}/api/enquiries`);
+  }
+
+  listPage(
+    page: number,
+    size: number,
+    sort: string,
+    direction: 'ASC' | 'DESC',
+  ): Observable<ApiPage<EnquiryRecord>> {
+    return this.http.get<ApiPage<EnquiryRecord>>(`${this.apiUrl}/api/enquiries/page`, {
+      params: { page, size, sort, direction },
+    });
   }
 
   updateStatus(id: string, status: EnquiryStatus): Observable<EnquiryRecord> {

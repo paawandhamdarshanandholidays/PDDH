@@ -14,13 +14,10 @@ import { AdminLogin } from './features/admin-login/admin-login';
 import { AdminContent } from './features/admin-content/admin-content';
 import { Offers } from './features/offers/offers';
 import { CeoDashboard } from './features/ceo-dashboard/ceo-dashboard';
-import { CeoBookings } from './features/ceo-bookings/ceo-bookings';
 import { RoleDashboard } from './features/role-dashboard/role-dashboard';
 import { CustomerRegister } from './features/customer-register/customer-register';
 import { CustomerProfile } from './features/customer-profile/customer-profile';
 import { UserManagement } from './features/user-management/user-management';
-import { UserDirectory } from './features/user-directory/user-directory';
-import { ManagementDashboard } from './features/management-dashboard/management-dashboard';
 import { PasswordRecovery } from './features/password-recovery/password-recovery';
 import { adminGuard } from './core/guards/admin.guard';
 import { ceoGuard } from './core/guards/ceo.guard';
@@ -51,10 +48,29 @@ export const routes: Routes = [
   { path: 'manager/dashboard', component: RoleDashboard, canActivate: [roleDashboardGuard], data: { role: 'MANAGER' } },
   { path: 'staff/dashboard', component: RoleDashboard, canActivate: [roleDashboardGuard], data: { role: 'STAFF' } },
   { path: 'customer/dashboard', component: RoleDashboard, canActivate: [roleDashboardGuard], data: { role: 'CUSTOMER' } },
-  { path: 'portal/bookings', component: CeoBookings, canActivate: [bookingsGuard] },
-  { path: 'portal/management', component: ManagementDashboard, canActivate: [bookingsGuard] },
+  {
+    path: 'portal/bookings',
+    loadComponent: () => import('./features/ceo-bookings/ceo-bookings').then((module) => module.CeoBookings),
+    canActivate: [bookingsGuard],
+  },
+  {
+    path: 'portal/my-bookings',
+    loadComponent: () => import('./features/customer-bookings/customer-bookings')
+      .then((module) => module.CustomerBookings),
+    canActivate: [customerBookingGuard],
+  },
+  {
+    path: 'portal/management',
+    loadComponent: () => import('./features/management-dashboard/management-dashboard')
+      .then((module) => module.ManagementDashboard),
+    canActivate: [bookingsGuard],
+  },
   { path: 'portal/users', component: UserManagement, canActivate: [userManagementGuard] },
-  { path: 'portal/user-directory', component: UserDirectory, canActivate: [userManagementGuard] },
+  {
+    path: 'portal/user-directory',
+    loadComponent: () => import('./features/user-directory/user-directory').then((module) => module.UserDirectory),
+    canActivate: [userManagementGuard],
+  },
   { path: 'portal/profile', component: CustomerProfile, canActivate: [authenticatedGuard] },
   { path: 'ceo/bookings', redirectTo: 'portal/bookings' },
   { path: 'admin/trips', component: AdminTrips, canActivate: [adminGuard] },
