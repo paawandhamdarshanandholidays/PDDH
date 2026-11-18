@@ -6,6 +6,7 @@ import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 import com.pddh.contact_service.dto.EnquiryRequest;
+import com.pddh.contact_service.dto.EnquiryUpdateRequest;
 import com.pddh.contact_service.dto.EnquiryPageResponse;
 import com.pddh.contact_service.dto.EnquiryResponse;
 import com.pddh.contact_service.security.EnquiryIdentityService;
@@ -80,6 +82,20 @@ public class EnquiryController {
             @PathVariable String id, @RequestBody StatusRequest request, HttpServletRequest servletRequest) {
         identityService.requireStaff(servletRequest);
         return enquiryService.updateStatus(id, request == null ? null : request.status());
+    }
+
+    @PatchMapping("/{id}")
+    public EnquiryResponse update(
+            @PathVariable String id, @RequestBody EnquiryUpdateRequest update, HttpServletRequest request) {
+        identityService.requireStaff(request);
+        return enquiryService.update(id, update);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id, HttpServletRequest request) {
+        identityService.requireStaff(request);
+        enquiryService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     public record StatusRequest(String status) {

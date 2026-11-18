@@ -117,7 +117,7 @@ describe('website content API persistence', () => {
     expectWrite(requests[1]);
     content.addEvent(event).subscribe();
     expectWrite(requests[2]);
-    gallery.addImage(image).subscribe();
+    gallery.addMedia(image).subscribe();
     expectWrite(requests[3]);
     hotels.addHotel(hotel).subscribe();
     expectWrite(requests[4]);
@@ -149,7 +149,7 @@ describe('website content API persistence', () => {
 
   it('deletes records through their APIs and changes the in-memory lists only on success', () => {
     const image = { src: 'https://example.test/photo.jpg', alt: 'Photo', category: 'Ayodhya' };
-    gallery.addImage(image).subscribe();
+    gallery.addMedia(image).subscribe();
     http.expectOne('http://localhost:9091/api/catalog/gallery').flush({ ...image, id: 'photo-1' });
     expect(gallery.images()).toHaveLength(1);
 
@@ -166,7 +166,7 @@ describe('website content API persistence', () => {
   it('does not add a record after an API authorization failure', () => {
     const draft = { src: 'https://example.test/photo.jpg', alt: 'Photo', category: 'Ayodhya' };
     let failed = false;
-    gallery.addImage(draft).subscribe({ error: () => failed = true });
+    gallery.addMedia(draft).subscribe({ error: () => failed = true });
     http.expectOne('http://localhost:9091/api/catalog/gallery').flush({}, {
       status: 403,
       statusText: 'Forbidden',
@@ -201,6 +201,25 @@ describe('website content API persistence', () => {
   it('clears loaded content cache and legacy browser data on logout', () => {
     localStorage.setItem('pddh.gallery.v1', 'legacy');
     expect(gallery.images().length).toBe(0);
+  });
+
+  it('persists a public video URL with its media type', () => {
+    const video = {
+      src: 'https://youtu.be/aqz-KE-bpKQ',
+      alt: 'Pilgrimage video',
+      category: 'Ayodhya',
+      mediaType: 'VIDEO' as const,
+    };
+    gallery.addMedia(video).subscribe();
+    const request = http.expectOne('http://localhost:9091/api/catalog/gallery');
+    expect(request.request.body).toEqual(video);
+    request.flush({ ...video, id: 'video-1' });
+
+    expect(gallery.images()[0]).toEqual(expect.objectContaining({
+      id: 'video-1',
+      mediaType: 'VIDEO',
+      src: video.src,
+    }));
 
     auth.logout();
 
@@ -215,7 +234,7 @@ describe('website content API persistence', () => {
   it('rejects malformed inline image data without sending or caching it', () => {
     let writeSucceeded = false;
     let writeFailed = false;
-    gallery.addImage({ src: 'data:image/jpeg;base64,abc', alt: 'Photo', category: 'Ayodhya' })
+    gallery.addMedia({ src: 'data:image/jpeg;base64,abc', alt: 'Photo', category: 'Ayodhya' })
       .subscribe({ next: () => writeSucceeded = true, error: () => writeFailed = true });
 
     http.expectNone('http://localhost:9091/api/catalog/gallery');

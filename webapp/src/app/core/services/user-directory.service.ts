@@ -5,7 +5,8 @@ import { ApiPage } from '../models/api-page.model';
 import { getApiBaseUrl } from './api-url';
 
 export interface UserDirectoryEntry {
-  id: number;
+  id: string;
+  source: 'MANUAL' | 'ACCOUNT';
   name: string;
   contactNumber: string;
   email: string;
@@ -38,5 +39,14 @@ export class UserDirectoryService {
 
   create(entry: UserDirectoryDraft): Observable<UserDirectoryEntry> {
     return this.http.post<UserDirectoryEntry>(`${this.apiUrl}/api/users/directory`, entry);
+  }
+
+  update(id: string, entry: UserDirectoryDraft): Observable<UserDirectoryEntry> {
+    return this.http.patch<UserDirectoryEntry>(
+      `${this.apiUrl}/api/users/directory/${encodeURIComponent(id)}`, entry);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/api/users/directory/${encodeURIComponent(id)}`);
   }
 }

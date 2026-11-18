@@ -67,6 +67,7 @@ public class ContentController {
             HttpServletRequest request) {
         requireManager(request);
         PublicImageUrlValidator.validate(body);
+        validateGalleryMediaType(body);
         Object response = idempotencyService.execute(
                 identityService.requireSubject(request),
                 "content.create:" + request.getRequestURI(),
@@ -82,6 +83,7 @@ public class ContentController {
             HttpServletRequest request) {
         requireManager(request);
         PublicImageUrlValidator.validate(body);
+        validateGalleryMediaType(body);
         return contentService.update(id, body);
     }
 
@@ -98,6 +100,20 @@ public class ContentController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only content managers can change this content");
         }
         rateLimitGuard.check("content.write");
+    }
+
+    static void validateGalleryMediaType(Map<String, Object> body) {
+        if (!body.containsKey("mediaType")) return;
+        Object mediaType = body.get("mediaType");
+        if (!"IMAGE".equals(mediaType) && !"VIDEO".equals(mediaType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gallery media type must be IMAGE or VIDEO");
+        }
+        if ("VIDEO".equals(mediaType)) {
+            Object source = body.get("src");
+            if (!(source instanceof String url) || url.regionMatches(true, 0, "data:", 0, 5)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Video sources must be public HTTP or HTTPS URLs");
+            }
+        }
     }
 
     private static final Set<String> CONTENT_MANAGERS = Set.of("CEO", "ADMIN", "MANAGER");

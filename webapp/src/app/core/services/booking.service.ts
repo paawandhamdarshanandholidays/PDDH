@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiPage } from '../models/api-page.model';
-import { BookingRecord, BookingRequest, BookingResponse, BookingStatus } from '../models/booking.model';
+import { BookingRecord, BookingRequest, BookingResponse, BookingStatus, BookingUpdate } from '../models/booking.model';
 import { getApiBaseUrl } from './api-url';
 import { createIdempotencyKey } from './idempotency-key';
 
@@ -33,7 +33,15 @@ export class BookingService {
     });
   }
 
-  updateStatus(id: string, status: BookingStatus): Observable<void> {
-    return this.http.patch<void>(`${this.apiUrl}/api/bookings/${encodeURIComponent(id)}/status`, { status });
+  updateStatus(id: string, status: BookingStatus): Observable<BookingRecord> {
+    return this.http.patch<BookingRecord>(`${this.apiUrl}/api/bookings/${encodeURIComponent(id)}/status`, { status });
+  }
+
+  update(id: string, update: BookingUpdate): Observable<BookingRecord> {
+    return this.http.patch<BookingRecord>(`${this.apiUrl}/api/bookings/${encodeURIComponent(id)}`, update);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/api/bookings/${encodeURIComponent(id)}`);
   }
 }

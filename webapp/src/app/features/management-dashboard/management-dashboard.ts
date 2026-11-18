@@ -3,13 +3,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { BookingRecord, BookingStatus } from '../../core/models/booking.model';
+import { BookingRecord, BookingStatus, BookingUpdate } from '../../core/models/booking.model';
 import { BookingService } from '../../core/services/booking.service';
-import { EnquiryRecord, EnquiryService, EnquiryStatus } from '../../core/services/enquiry.service';
+import { EnquiryRecord, EnquiryService, EnquiryStatus, EnquiryUpdate } from '../../core/services/enquiry.service';
 
 type DashboardSection = 'BOOKINGS' | 'ENQUIRIES' | null;
 type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
 type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
+type BookingEditDraft = BookingUpdate & { endDate: string; tripId: string; hotelId: string };
+type EnquiryEditDraft = EnquiryUpdate;
+
+const emptyBookingDraft = (): BookingEditDraft => ({
+  customerName: '', email: '', phone: '', guests: 1, startDate: '', endDate: '', tripId: '', hotelId: '',
+});
 
 @Component({
   selector: 'app-management-dashboard',
@@ -55,6 +61,7 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
         @if (section()) { <button class="text-button" type="button" (click)="refresh()" [disabled]="isLoading()">Refresh</button> }
       </div>
       @if (error()) { <div class="notice notice--error" role="alert">{{ error() }}</div> }
+      @if (message()) { <div class="notice notice--success" role="status">{{ message() }}</div> }
 
       <div class="ops-summary">
         <button type="button" [attr.aria-pressed]="section() === 'BOOKINGS'" (click)="setSection('BOOKINGS')">
@@ -102,7 +109,7 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
               <thead><tr>
                 <th>Reference</th><th><button type="button" (click)="sortBookings('customerName')">Customer {{ sortMark(bookingsSort(), bookingsDirection(), 'customerName') }}</button></th>
                 <th>Journey</th><th>Stay dates</th><th><button type="button" (click)="sortBookings('bookingDate')">Booked {{ sortMark(bookingsSort(), bookingsDirection(), 'bookingDate') }}</button></th>
-                <th>Status</th><th>Details</th>
+                <th>Status</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 @for (booking of filteredBookings(); track booking.id) {
@@ -118,10 +125,44 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
                         (ngModelChange)="setBookingStatus(booking, $event)">
                       @for (status of bookingStatuses; track status) { <option [value]="status">{{ status }}</option> }
                     </select></td>
-                    <td><button class="text-button" type="button" (click)="toggleBooking(booking.id)">
-                      {{ expandedBookingId() === booking.id ? 'Hide' : 'View' }}
-                    </button></td>
+                    <td>
+                      <button class="text-button" type="button" (click)="toggleBooking(booking.id)">
+                        {{ expandedBookingId() === booking.id ? 'Hide' : 'View' }}
+                      </button>
+                      <button class="text-button" type="button" (click)="editBooking(booking)"
+                        [disabled]="updatingBookings().has(booking.id)">Edit</button>
+                      <button class="text-button text-button--danger" type="button" (click)="deleteBooking(booking)"
+                        [disabled]="updatingBookings().has(booking.id)">Delete</button>
+                    </td>
                   </tr>
+                  @if (editingBookingId() === booking.id) {
+                    <tr><td colspan="7">
+                      <form class="form-card" (ngSubmit)="saveBooking(booking)" #bookingEditForm="ngForm">
+                        <p class="eyebrow">Edit booking</p><h3>{{ booking.id }} <span class="form-hint">Reference cannot be changed</span></h3>
+                        <div class="form-row">
+                          <label>Customer name<input name="bookingCustomerName" [(ngModel)]="bookingDraft.customerName" required maxlength="120"></label>
+                          <label>Email<input name="bookingEmail" [(ngModel)]="bookingDraft.email" required type="email" maxlength="254"></label>
+                          <label>Phone<input name="bookingPhone" [(ngModel)]="bookingDraft.phone" required maxlength="30" type="tel"></label>
+                          <label>Guests<input name="bookingGuests" [(ngModel)]="bookingDraft.guests" required type="number" min="1" max="30"></label>
+                        </div>
+                        <div class="form-row">
+                          <label>Start date<input name="bookingStartDate" [(ngModel)]="bookingDraft.startDate" required type="date"></label>
+                          @if (booking.bookingType === 'TRIP') {
+                            <label>End date<input name="bookingEndDate" [(ngModel)]="bookingDraft.endDate" required type="date"></label>
+                            <label>Trip ID<input name="bookingTripId" [(ngModel)]="bookingDraft.tripId" required maxlength="120"></label>
+                          } @else {
+                            <label>End date<input name="bookingEndDate" [(ngModel)]="bookingDraft.endDate" type="date"></label>
+                            <label>Accommodation ID<input name="bookingHotelId" [(ngModel)]="bookingDraft.hotelId" required maxlength="120"></label>
+                          }
+                        </div>
+                        <div class="user-card__actions">
+                          <button class="button button--small" type="submit"
+                            [disabled]="bookingEditForm.invalid || updatingBookings().has(booking.id)">Save changes</button>
+                          <button class="text-button" type="button" (click)="editingBookingId.set(null)">Cancel</button>
+                        </div>
+                      </form>
+                    </td></tr>
+                  }
                   @if (expandedBookingId() === booking.id) {
                     <tr><td colspan="7"><div class="ops-details">Customer account: {{ booking.customerId }}
                       @if (booking.tripId) { · Trip ID: {{ booking.tripId }} } @if (booking.hotelId) { · Stay ID: {{ booking.hotelId }} }
@@ -164,7 +205,7 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
                 <th><button type="button" (click)="sortEnquiries('createdAt')">Received {{ sortMark(enquiriesSort(), enquiriesDirection(), 'createdAt') }}</button></th>
                 <th><button type="button" (click)="sortEnquiries('name')">Name {{ sortMark(enquiriesSort(), enquiriesDirection(), 'name') }}</button></th>
                 <th><button type="button" (click)="sortEnquiries('subject')">Subject {{ sortMark(enquiriesSort(), enquiriesDirection(), 'subject') }}</button></th>
-                <th>Contact</th><th>Status</th><th>Message</th>
+                <th>Contact</th><th>Status</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 @for (enquiry of filteredEnquiries(); track enquiry.id) {
@@ -179,10 +220,35 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
                         (ngModelChange)="setEnquiryStatus(enquiry, $event)">
                       @for (status of enquiryStatuses; track status) { <option [value]="status">{{ status.replace('_', ' ') }}</option> }
                     </select></td>
-                    <td><button class="text-button" type="button" (click)="toggleEnquiry(enquiry.id)">
-                      {{ expandedEnquiryId() === enquiry.id ? 'Hide' : 'View message' }}
-                    </button></td>
+                    <td>
+                      <button class="text-button" type="button" (click)="toggleEnquiry(enquiry.id)">
+                        {{ expandedEnquiryId() === enquiry.id ? 'Hide' : 'View message' }}
+                      </button>
+                      <button class="text-button" type="button" (click)="editEnquiry(enquiry)"
+                        [disabled]="updatingEnquiries().has(enquiry.id)">Edit</button>
+                      <button class="text-button text-button--danger" type="button" (click)="deleteEnquiry(enquiry)"
+                        [disabled]="updatingEnquiries().has(enquiry.id)">Delete</button>
+                    </td>
                   </tr>
+                  @if (editingEnquiryId() === enquiry.id) {
+                    <tr><td colspan="6">
+                      <form class="form-card" (ngSubmit)="saveEnquiry(enquiry)" #enquiryEditForm="ngForm">
+                        <p class="eyebrow">Edit enquiry</p><h3>{{ enquiry.id }} <span class="form-hint">Reference and received date cannot be changed</span></h3>
+                        <div class="form-row">
+                          <label>Name<input name="enquiryName" [(ngModel)]="enquiryDraft.name" required maxlength="120"></label>
+                          <label>Email<input name="enquiryEmail" [(ngModel)]="enquiryDraft.email" required type="email" maxlength="254"></label>
+                          <label>Phone<input name="enquiryPhone" [(ngModel)]="enquiryDraft.phone" required maxlength="30" type="tel"></label>
+                          <label>Subject<input name="enquirySubject" [(ngModel)]="enquiryDraft.subject" required maxlength="160"></label>
+                        </div>
+                        <label>Message<textarea name="enquiryMessage" [(ngModel)]="enquiryDraft.message" required maxlength="5000" rows="5"></textarea></label>
+                        <div class="user-card__actions">
+                          <button class="button button--small" type="submit"
+                            [disabled]="enquiryEditForm.invalid || updatingEnquiries().has(enquiry.id)">Save changes</button>
+                          <button class="text-button" type="button" (click)="editingEnquiryId.set(null)">Cancel</button>
+                        </div>
+                      </form>
+                    </td></tr>
+                  }
                   @if (expandedEnquiryId() === enquiry.id) {
                     <tr><td colspan="6"><div class="ops-details">{{ enquiry.message }}</div></td></tr>
                   }
@@ -216,6 +282,7 @@ export class ManagementDashboard {
   readonly bookingsLoading = signal(false);
   readonly enquiriesLoading = signal(false);
   readonly error = signal('');
+  readonly message = signal('');
   readonly search = signal('');
   readonly appliedSearch = signal('');
   readonly section = signal<DashboardSection>(null);
@@ -223,6 +290,10 @@ export class ManagementDashboard {
   readonly enquiryStatus = signal<'ALL' | EnquiryStatus>('ALL');
   readonly expandedBookingId = signal<string | null>(null);
   readonly expandedEnquiryId = signal<string | null>(null);
+  readonly editingBookingId = signal<string | null>(null);
+  readonly editingEnquiryId = signal<string | null>(null);
+  bookingDraft = emptyBookingDraft();
+  enquiryDraft: EnquiryEditDraft = { name: '', email: '', phone: '', subject: '', message: '' };
   readonly bookingStatuses: BookingStatus[] = ['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED'];
   readonly enquiryStatuses: EnquiryStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
   readonly pageSizes = [25, 50, 100, 500, 1000, 5000, 10000];
@@ -401,11 +472,83 @@ export class ManagementDashboard {
         next.delete(booking.id);
         return next;
       }))).subscribe({
-      next: () => this.bookings.update((items) =>
-        items.map((item) => item.id === booking.id ? { ...item, status } : item)),
+      next: (updated) => this.bookings.update((items) =>
+        items.map((item) => item.id === booking.id ? updated : item)),
       error: (error: HttpErrorResponse) => this.error.set(error.status
         ? `Could not update booking ${booking.id} (${error.status}).`
         : 'Could not reach the bookings API to update this record.'),
+    });
+  }
+
+  editBooking(booking: BookingRecord): void {
+    this.error.set('');
+    this.message.set('');
+    this.bookingDraft = {
+      customerName: booking.customerName,
+      email: booking.email,
+      phone: booking.phone,
+      guests: booking.guests,
+      startDate: booking.startDate,
+      endDate: booking.endDate ?? '',
+      tripId: booking.tripId ?? '',
+      hotelId: booking.hotelId ?? '',
+    };
+    this.editingBookingId.set(booking.id);
+  }
+
+  saveBooking(booking: BookingRecord): void {
+    if (this.updatingBookings().has(booking.id)) return;
+    const update: BookingUpdate = {
+      ...this.bookingDraft,
+      endDate: this.bookingDraft.endDate || undefined,
+      tripId: this.bookingDraft.tripId || undefined,
+      hotelId: this.bookingDraft.hotelId || undefined,
+    };
+    this.error.set('');
+    this.message.set('');
+    this.updatingBookings.update((current) => new Set(current).add(booking.id));
+    this.bookingService.update(booking.id, update).pipe(finalize(() =>
+      this.updatingBookings.update((current) => {
+        const next = new Set(current);
+        next.delete(booking.id);
+        return next;
+      }))).subscribe({
+      next: (updated) => {
+        this.bookings.update((items) => items.map((item) => item.id === booking.id ? updated : item));
+        this.editingBookingId.set(null);
+        this.message.set(`Booking ${booking.id} updated.`);
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.status
+        ? `Could not update booking ${booking.id} (${error.status}).`
+        : 'Could not reach the bookings API to update this record.'),
+    });
+  }
+
+  deleteBooking(booking: BookingRecord): void {
+    if (!globalThis.confirm(`Permanently delete booking ${booking.id}?`)
+        || this.updatingBookings().has(booking.id)) return;
+    this.error.set('');
+    this.message.set('');
+    this.updatingBookings.update((current) => new Set(current).add(booking.id));
+    this.bookingService.delete(booking.id).pipe(finalize(() =>
+      this.updatingBookings.update((current) => {
+        const next = new Set(current);
+        next.delete(booking.id);
+        return next;
+      }))).subscribe({
+      next: () => {
+        this.bookings.update((items) => items.filter((item) => item.id !== booking.id));
+        this.bookingsTotal.update((total) => Math.max(0, total - 1));
+        this.editingBookingId.set(null);
+        this.message.set(`Booking ${booking.id} deleted.`);
+        if (this.bookings().length === 0 && this.bookingsPage() > 0) {
+          this.bookingsPage.update((page) => page - 1);
+          this.loadBookings();
+        }
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.status
+        ? `Could not delete booking ${booking.id} (${error.status}).`
+        : 'Could not reach the bookings API to delete this record.'),
     });
   }
 
@@ -426,6 +569,69 @@ export class ManagementDashboard {
       error: (error: HttpErrorResponse) => this.error.set(error.status
         ? `Could not update enquiry ${enquiry.id} (${error.status}).`
         : 'Could not reach the enquiries API to update this record.'),
+    });
+  }
+
+  editEnquiry(enquiry: EnquiryRecord): void {
+    this.error.set('');
+    this.message.set('');
+    this.enquiryDraft = {
+      name: enquiry.name,
+      email: enquiry.email,
+      phone: enquiry.phone,
+      subject: enquiry.subject,
+      message: enquiry.message,
+    };
+    this.editingEnquiryId.set(enquiry.id);
+  }
+
+  saveEnquiry(enquiry: EnquiryRecord): void {
+    if (this.updatingEnquiries().has(enquiry.id)) return;
+    this.error.set('');
+    this.message.set('');
+    this.updatingEnquiries.update((current) => new Set(current).add(enquiry.id));
+    this.enquiryService.update(enquiry.id, this.enquiryDraft).pipe(finalize(() =>
+      this.updatingEnquiries.update((current) => {
+        const next = new Set(current);
+        next.delete(enquiry.id);
+        return next;
+      }))).subscribe({
+      next: (updated) => {
+        this.enquiries.update((items) => items.map((item) => item.id === enquiry.id ? updated : item));
+        this.editingEnquiryId.set(null);
+        this.message.set(`Enquiry ${enquiry.id} updated.`);
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.status
+        ? `Could not update enquiry ${enquiry.id} (${error.status}).`
+        : 'Could not reach the enquiries API to update this record.'),
+    });
+  }
+
+  deleteEnquiry(enquiry: EnquiryRecord): void {
+    if (!globalThis.confirm(`Permanently delete enquiry ${enquiry.id}?`)
+        || this.updatingEnquiries().has(enquiry.id)) return;
+    this.error.set('');
+    this.message.set('');
+    this.updatingEnquiries.update((current) => new Set(current).add(enquiry.id));
+    this.enquiryService.delete(enquiry.id).pipe(finalize(() =>
+      this.updatingEnquiries.update((current) => {
+        const next = new Set(current);
+        next.delete(enquiry.id);
+        return next;
+      }))).subscribe({
+      next: () => {
+        this.enquiries.update((items) => items.filter((item) => item.id !== enquiry.id));
+        this.enquiriesTotal.update((total) => Math.max(0, total - 1));
+        this.editingEnquiryId.set(null);
+        this.message.set(`Enquiry ${enquiry.id} deleted.`);
+        if (this.enquiries().length === 0 && this.enquiriesPage() > 0) {
+          this.enquiriesPage.update((page) => page - 1);
+          this.loadEnquiries();
+        }
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.status
+        ? `Could not delete enquiry ${enquiry.id} (${error.status}).`
+        : 'Could not reach the enquiries API to delete this record.'),
     });
   }
 

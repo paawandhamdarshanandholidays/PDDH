@@ -164,8 +164,8 @@ export class CeoBookings {
     this.error.set('');
     this.updating.update((current) => new Set(current).add(booking.id));
     this.bookingService.updateStatus(booking.id, status).subscribe({
-      next: () => {
-        this.bookings.update((current) => current.map((item) => item.id === booking.id ? { ...item, status } : item));
+      next: (updated) => {
+        this.bookings.update((current) => current.map((item) => item.id === booking.id ? updated : item));
         this.updating.update((current) => {
           const next = new Set(current);
           next.delete(booking.id);

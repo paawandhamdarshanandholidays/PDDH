@@ -24,6 +24,14 @@ describe('ImageSourceField', () => {
     expect(component.validate(new FormControl(''))).toEqual({ imageUnavailable: true });
   });
 
+  it('can be configured as optional without weakening required image fields', () => {
+    const component = fixture.componentInstance;
+    expect(component.validate(new FormControl(''))).toEqual({ required: true });
+
+    component.required = false;
+    expect(component.validate(new FormControl(''))).toBeNull();
+  });
+
   it('rejects invalid data URLs and accepts the selected image formats', () => {
     const component = fixture.componentInstance;
     component.writeValue('data:image/svg+xml;base64,PHN2Zz4=');

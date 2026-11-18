@@ -21,7 +21,7 @@ const emptyDraft = (): UserDirectoryDraft => ({
   imports: [FormsModule],
   styles: [`
     .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: #fff; }
-    table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1040px; }
     th, td { padding: .8rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
     th { color: var(--muted); background: #f8fafc; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
     th button { padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -41,7 +41,7 @@ const emptyDraft = (): UserDirectoryDraft => ({
     <section class="admin-page">
       <div class="admin-heading">
         <div><p class="eyebrow">Customer records</p><h1>User directory</h1>
-          <p>Choose whether to browse the directory or add a new customer record. Directory data loads only when you open it.</p>
+          <p>Browse registered customer accounts and manually entered records. Registered accounts are read-only here; manual records can be edited or deleted.</p>
         </div>
         @if (action()) { <button class="text-button" type="button" (click)="returnToChoices()">Back to options</button> }
       </div>
@@ -86,16 +86,46 @@ const emptyDraft = (): UserDirectoryDraft => ({
               <thead><tr>
                 <th><button type="button" (click)="sortBy('name')">Name {{ sortMark('name') }}</button></th>
                 <th>Contact</th><th><button type="button" (click)="sortBy('email')">Email {{ sortMark('email') }}</button></th>
-                <th>Address</th><th>Referred by</th><th>Service provided</th>
+                <th>Address</th><th>Referred by</th><th>Service provided</th><th>Record type</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 @for (entry of filteredEntries(); track entry.id) {
-                  <tr>
-                    <td>{{ entry.name }}</td><td>{{ entry.contactNumber || '—' }}</td><td>{{ entry.email }}</td>
-                    <td>{{ entry.address || '—' }}</td><td>{{ entry.referredBy || '—' }}</td><td>{{ entry.serviceProvided || '—' }}</td>
-                  </tr>
+                  @if (editingId() === entry.id) {
+                    <tr><td colspan="8">
+                      <form class="form-card" (ngSubmit)="saveEdit(entry)" #editForm="ngForm">
+                        <p class="eyebrow">Manual entry</p><h3>Edit {{ entry.name }}</h3>
+                        <div class="form-row">
+                          <label>Name<input name="editName" [(ngModel)]="editDraft.name" required maxlength="120"></label>
+                          <label>Contact number<input name="editContact" [(ngModel)]="editDraft.contactNumber" required maxlength="30" type="tel"></label>
+                        </div>
+                        <div class="form-row">
+                          <label>Email<input name="editEmail" [(ngModel)]="editDraft.email" required maxlength="254" type="email"></label>
+                          <label>Referred by<input name="editReferredBy" [(ngModel)]="editDraft.referredBy" required maxlength="120"></label>
+                        </div>
+                        <label>Address<input name="editAddress" [(ngModel)]="editDraft.address" required maxlength="300"></label>
+                        <label>Service provided<input name="editService" [(ngModel)]="editDraft.serviceProvided" required maxlength="160"></label>
+                        <div class="user-card__actions">
+                          <button class="button button--small" type="submit" [disabled]="editForm.invalid || saving()">Save changes</button>
+                          <button class="text-button" type="button" (click)="editingId.set(null)" [disabled]="saving()">Cancel</button>
+                        </div>
+                      </form>
+                    </td></tr>
+                  } @else {
+                    <tr>
+                      <td>{{ entry.name }}</td><td>{{ entry.contactNumber || '—' }}</td><td>{{ entry.email }}</td>
+                      <td>{{ entry.address || '—' }}</td><td>{{ entry.referredBy || '—' }}</td>
+                      <td>{{ entry.serviceProvided || '—' }}</td>
+                      <td>{{ entry.source === 'ACCOUNT' ? 'Registered account' : 'Manual entry' }}</td>
+                      <td>
+                        @if (entry.source === 'MANUAL') {
+                          <button class="text-button" type="button" (click)="edit(entry)" [disabled]="saving()">Edit</button>
+                          <button class="text-button text-button--danger" type="button" (click)="delete(entry)" [disabled]="saving()">Delete</button>
+                        } @else { <span class="form-hint">Read only</span> }
+                      </td>
+                    </tr>
+                  }
                 } @empty {
-                  <tr><td colspan="6">{{ loading() ? 'Loading directory…' : 'No records match the loaded page and search.' }}</td></tr>
+                  <tr><td colspan="8">{{ loading() ? 'Loading directory…' : 'No records match the loaded page and search.' }}</td></tr>
                 }
               </tbody>
             </table>
@@ -140,6 +170,8 @@ export class UserDirectory {
   readonly direction = signal<'ASC' | 'DESC'>('ASC');
   readonly pageSizes = [10, 25, 50];
   draft = emptyDraft();
+  readonly editingId = signal<string | null>(null);
+  editDraft = emptyDraft();
   private readonly requestId = signal(0);
 
   openDirectory(): void {
@@ -238,6 +270,68 @@ export class UserDirectory {
           : error.status
             ? `Could not save this directory record (${error.status}).`
             : 'Could not reach the user directory API.');
+        this.saving.set(false);
+      },
+    });
+  }
+
+  edit(entry: UserDirectoryEntry): void {
+    if (entry.source !== 'MANUAL') return;
+    this.error.set('');
+    this.message.set('');
+    this.editingId.set(entry.id);
+    this.editDraft = {
+      name: entry.name,
+      contactNumber: entry.contactNumber,
+      email: entry.email,
+      address: entry.address,
+      referredBy: entry.referredBy,
+      serviceProvided: entry.serviceProvided,
+    };
+  }
+
+  saveEdit(entry: UserDirectoryEntry): void {
+    if (entry.source !== 'MANUAL' || this.editingId() !== entry.id) return;
+    this.error.set('');
+    this.message.set('');
+    this.saving.set(true);
+    const update = Object.fromEntries(
+      Object.entries(this.editDraft).map(([key, value]) => [key, value.trim()]),
+    ) as UserDirectoryDraft;
+    this.directory.update(entry.id, update).subscribe({
+      next: (updated) => {
+        this.entries.update((items) => items.map((item) => item.id === entry.id ? updated : item));
+        this.editingId.set(null);
+        this.saving.set(false);
+        this.message.set('Manual customer record updated.');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.error.set(error.status
+          ? `Could not update this manual record (${error.status}).`
+          : 'Could not reach the user directory API.');
+        this.saving.set(false);
+      },
+    });
+  }
+
+  delete(entry: UserDirectoryEntry): void {
+    if (entry.source !== 'MANUAL'
+        || !globalThis.confirm(`Permanently delete the manual record for ${entry.name}?`)) return;
+    this.error.set('');
+    this.message.set('');
+    this.saving.set(true);
+    this.directory.delete(entry.id).subscribe({
+      next: () => {
+        this.entries.update((items) => items.filter((item) => item.id !== entry.id));
+        this.total.update((count) => Math.max(0, count - 1));
+        this.totalPages.set(Math.ceil(this.total() / this.size()));
+        this.saving.set(false);
+        this.message.set('Manual customer record deleted.');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.error.set(error.status
+          ? `Could not delete this manual record (${error.status}).`
+          : 'Could not reach the user directory API.');
         this.saving.set(false);
       },
     });

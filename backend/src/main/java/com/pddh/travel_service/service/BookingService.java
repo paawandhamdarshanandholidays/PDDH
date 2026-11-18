@@ -26,6 +26,7 @@ import com.pddh.travel_service.dto.BookingRecordResponse;
 import com.pddh.travel_service.dto.BookingPageResponse;
 import com.pddh.travel_service.dto.BookingRequest;
 import com.pddh.travel_service.dto.BookingResponse;
+import com.pddh.travel_service.dto.BookingUpdateRequest;
 import com.pddh.travel_service.entity.Booking;
 import com.pddh.travel_service.repository.BookingRepository;
 import com.pddh.travel_service.security.TravelIdentity;
@@ -189,10 +190,55 @@ public class BookingService {
     }
 
     @Transactional
-    public void updateStatus(String id, String requestedStatus, TravelIdentity identity) {
-        if (!identity.canReviewBookings()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot review bookings");
+    public BookingRecordResponse update(String id, BookingUpdateRequest request, TravelIdentity identity) {
+        requireBookingManager(identity);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        if (request == null || blank(request.customerName()) || blank(request.email()) || blank(request.phone())
+                || request.guests() == null || request.guests() < 1 || request.guests() > 30
+                || request.customerName().length() > 120 || request.email().length() > 254
+                || request.phone().length() > 30
+                || !request.email().trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking details are invalid");
         }
+        if (blank(request.startDate())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A start date is required");
+        }
+        LocalDate startDate = parseDate(request.startDate(), "startDate");
+        LocalDate endDate = blank(request.endDate()) ? null : parseDate(request.endDate(), "endDate");
+        if ((endDate != null && !endDate.isAfter(startDate))
+                || ("TRIP".equals(booking.getBookingType()) && endDate == null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking dates are invalid");
+        }
+        String tripId = blankToNull(request.tripId());
+        String hotelId = blankToNull(request.hotelId());
+        if (("TRIP".equals(booking.getBookingType()) && tripId == null)
+                || ("STAY".equals(booking.getBookingType()) && hotelId == null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A trip or stay must be selected");
+        }
+
+        booking.setCustomerName(request.customerName().trim());
+        booking.setEmail(request.email().trim());
+        booking.setPhone(request.phone().trim());
+        booking.setGuests(request.guests());
+        booking.setStartDate(startDate);
+        booking.setEndDate(endDate);
+        booking.setTripId("TRIP".equals(booking.getBookingType()) ? tripId : null);
+        booking.setHotelId("STAY".equals(booking.getBookingType()) ? hotelId : null);
+        return toResponse(bookingRepository.saveAndFlush(booking));
+    }
+
+    @Transactional
+    public void delete(String id, TravelIdentity identity) {
+        requireBookingManager(identity);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        bookingRepository.delete(booking);
+    }
+
+    @Transactional
+    public BookingRecordResponse updateStatus(String id, String requestedStatus, TravelIdentity identity) {
+        requireBookingManager(identity);
         if (requestedStatus == null
                 || !BOOKING_STATUSES.contains(requestedStatus.trim().toUpperCase(Locale.ROOT))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported booking status");
@@ -200,7 +246,13 @@ public class BookingService {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
         booking.setStatus(requestedStatus.trim().toUpperCase(Locale.ROOT));
-        bookingRepository.saveAndFlush(booking);
+        return toResponse(bookingRepository.saveAndFlush(booking));
+    }
+
+    private void requireBookingManager(TravelIdentity identity) {
+        if (identity == null || !identity.canReviewBookings()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot review bookings");
+        }
     }
 
     private String searchTerm(String search) {

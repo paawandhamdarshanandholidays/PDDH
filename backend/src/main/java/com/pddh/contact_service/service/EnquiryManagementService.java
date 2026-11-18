@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.pddh.contact_service.dto.EnquiryRequest;
+import com.pddh.contact_service.dto.EnquiryUpdateRequest;
 import com.pddh.contact_service.dto.EnquiryPageResponse;
 import com.pddh.contact_service.entity.Enquiry;
 import com.pddh.contact_service.repository.EnquiryRepository;
@@ -85,6 +86,39 @@ public class EnquiryManagementService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enquiry not found"));
         enquiry.setStatus(normalized);
         return toResponse(repository.saveAndFlush(enquiry));
+    }
+
+    @Transactional
+    public EnquiryResponse update(String id, EnquiryUpdateRequest request) {
+        validateContent(request);
+        Enquiry enquiry = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enquiry not found"));
+        enquiry.setName(request.name().trim());
+        enquiry.setEmail(request.email().trim());
+        enquiry.setPhone(request.phone().trim());
+        enquiry.setSubject(request.subject().trim());
+        enquiry.setMessage(request.message().trim());
+        return toResponse(repository.saveAndFlush(enquiry));
+    }
+
+    @Transactional
+    public void delete(String id) {
+        Enquiry enquiry = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enquiry not found"));
+        repository.delete(enquiry);
+    }
+
+    private void validateContent(EnquiryUpdateRequest request) {
+        if (request == null || blank(request.name()) || blank(request.email()) || blank(request.phone())
+                || blank(request.subject()) || blank(request.message())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All enquiry fields are required");
+        }
+        if (request.name().length() > 120 || request.email().length() > 254
+                || request.phone().length() > 30 || request.subject().length() > 160
+                || request.message().length() > 5000
+                || !request.email().trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more enquiry fields are invalid");
+        }
     }
 
     private EnquiryResponse toResponse(Enquiry enquiry) {

@@ -7,7 +7,11 @@ import { ManagementDashboard } from './management-dashboard';
 describe('ManagementDashboard', () => {
   let fixture: ComponentFixture<ManagementDashboard>;
   let updateBookingStatus: ReturnType<typeof vi.fn>;
+  let updateBooking: ReturnType<typeof vi.fn>;
+  let deleteBooking: ReturnType<typeof vi.fn>;
   let updateEnquiryStatus: ReturnType<typeof vi.fn>;
+  let updateEnquiry: ReturnType<typeof vi.fn>;
+  let deleteEnquiry: ReturnType<typeof vi.fn>;
   let getBookingsPage: ReturnType<typeof vi.fn>;
   let listEnquiryPage: ReturnType<typeof vi.fn>;
 
@@ -47,7 +51,24 @@ describe('ManagementDashboard', () => {
       totalElements: 51,
       totalPages: 2,
     }));
-    updateBookingStatus = vi.fn(() => of(void 0));
+    const booking = {
+      id: 'booking-1',
+      customerId: 'asha',
+      bookingDate: '2026-11-14',
+      bookingType: 'TRIP' as const,
+      customerName: 'Asha',
+      email: 'asha@example.test',
+      phone: '123',
+      guests: 2,
+      startDate: '2026-12-01',
+      endDate: '2026-12-05',
+      tripId: 'trip-1',
+      status: 'PENDING' as const,
+    };
+    updateBookingStatus = vi.fn((_id: string, status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED') =>
+      of({ ...booking, status }));
+    updateBooking = vi.fn((id: string, update: typeof booking) => of({ ...booking, ...update, id }));
+    deleteBooking = vi.fn(() => of(void 0));
     updateEnquiryStatus = vi.fn((id: string, status: EnquiryStatus) => of({
       id,
       name: 'Asha',
@@ -58,6 +79,13 @@ describe('ManagementDashboard', () => {
       status,
       createdAt: '2026-11-14T00:00:00Z',
     }));
+    updateEnquiry = vi.fn((id: string, update: Record<string, string>) => of({
+      id,
+      ...update,
+      status: 'OPEN' as const,
+      createdAt: '2026-11-14T00:00:00Z',
+    }));
+    deleteEnquiry = vi.fn(() => of(void 0));
     await TestBed.configureTestingModule({
       imports: [ManagementDashboard],
       providers: [
@@ -66,6 +94,8 @@ describe('ManagementDashboard', () => {
           useValue: {
             getBookingsPage,
             updateStatus: updateBookingStatus,
+            update: updateBooking,
+            delete: deleteBooking,
           },
         },
         {
@@ -73,6 +103,8 @@ describe('ManagementDashboard', () => {
           useValue: {
             listPage: listEnquiryPage,
             updateStatus: updateEnquiryStatus,
+            update: updateEnquiry,
+            delete: deleteEnquiry,
           },
         },
       ],
@@ -109,6 +141,37 @@ describe('ManagementDashboard', () => {
 
     expect(updateBookingStatus).toHaveBeenCalledWith('booking-1', 'CONFIRMED');
     expect(updateEnquiryStatus).toHaveBeenCalledWith('enquiry-1', 'IN_PROGRESS');
+    expect(component.bookings()[0]?.status).toBe('CONFIRMED');
+    expect(component.enquiries()[0]?.status).toBe('IN_PROGRESS');
+  });
+
+  it('updates and deletes bookings and enquiries without changing their IDs', () => {
+    vi.stubGlobal('confirm', () => true);
+    const component = fixture.componentInstance;
+    component.setSection('BOOKINGS');
+    const booking = component.bookings()[0]!;
+    component.editBooking(booking);
+    component.bookingDraft.customerName = 'Updated customer';
+    component.saveBooking(booking);
+    expect(updateBooking).toHaveBeenCalledWith('booking-1', expect.objectContaining({
+      customerName: 'Updated customer',
+    }));
+    expect(component.bookings()[0]?.customerName).toBe('Updated customer');
+    component.deleteBooking(component.bookings()[0]!);
+    expect(deleteBooking).toHaveBeenCalledWith('booking-1');
+
+    component.setSection('ENQUIRIES');
+    const enquiry = component.enquiries()[0]!;
+    component.editEnquiry(enquiry);
+    component.enquiryDraft.subject = 'Updated subject';
+    component.saveEnquiry(enquiry);
+    expect(updateEnquiry).toHaveBeenCalledWith('enquiry-1', expect.objectContaining({
+      subject: 'Updated subject',
+    }));
+    expect(component.enquiries()[0]?.subject).toBe('Updated subject');
+    component.deleteEnquiry(component.enquiries()[0]!);
+    expect(deleteEnquiry).toHaveBeenCalledWith('enquiry-1');
+    vi.unstubAllGlobals();
   });
 
   it('searches database results and pages them using the configured size', () => {

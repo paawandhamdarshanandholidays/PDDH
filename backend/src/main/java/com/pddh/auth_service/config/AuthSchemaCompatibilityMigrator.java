@@ -26,9 +26,55 @@ public class AuthSchemaCompatibilityMigrator implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         removeGlobalCombinedRoleConstraints();
         migrateLegacyUsers();
+        normalizeLegacyCustomerRoles();
         ROLES.forEach(this::migrateLegacyRole);
         addRoleScopedCombinedRoleConstraints();
         new RoleProfileSchemaCompatibility(jdbc, "users", "admin", "manager", "ceo", "staff").migrateAll();
+    }
+
+    void normalizeLegacyCustomerRoles() {
+        int normalized = jdbc.update("""
+                UPDATE combined_roles legacy
+                SET role = 'CUSTOMER'
+                WHERE upper(trim(legacy.role)) = 'USER'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM combined_roles customer
+                      WHERE customer.id <> legacy.id
+                        AND upper(trim(customer.role)) = 'CUSTOMER'
+                        AND (
+                            lower(customer.username) = lower(legacy.username)
+                            OR lower(customer.email) = lower(legacy.email)
+                            OR (customer.mobile IS NOT NULL AND legacy.mobile IS NOT NULL
+                                AND lower(customer.mobile) = lower(legacy.mobile))
+                        )
+                  )
+                """);
+        if (normalized > 0) {
+            LOGGER.info("Normalized {} legacy USER account(s) to the CUSTOMER role", normalized);
+        }
+
+        Integer unresolved = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM combined_roles legacy
+                WHERE upper(trim(legacy.role)) = 'USER'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM combined_roles customer
+                      WHERE customer.id <> legacy.id
+                        AND upper(trim(customer.role)) = 'CUSTOMER'
+                        AND (
+                            lower(customer.username) = lower(legacy.username)
+                            OR lower(customer.email) = lower(legacy.email)
+                            OR (customer.mobile IS NOT NULL AND legacy.mobile IS NOT NULL
+                                AND lower(customer.mobile) = lower(legacy.mobile))
+                        )
+                  )
+                """, Integer.class);
+        if (unresolved != null && unresolved > 0) {
+            LOGGER.warn("Left {} legacy USER account(s) unchanged because a CUSTOMER account already uses "
+                    + "the same username, email, or mobile", unresolved);
+        }
     }
 
     private void removeGlobalCombinedRoleConstraints() {

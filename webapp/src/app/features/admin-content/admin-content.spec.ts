@@ -3,7 +3,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { ContentService } from '../../core/services/content.service';
 import { GalleryService } from '../../core/services/gallery.service';
 import { HotelService } from '../../core/services/hotel.service';
@@ -16,6 +17,7 @@ import { AdminContent } from './admin-content';
 describe('AdminContent', () => {
   let fixture: ComponentFixture<AdminContent>;
   let component: AdminContent;
+  let logoutEvents: Subject<void>;
   let content: {
     temples: ReturnType<typeof signal>;
     places: ReturnType<typeof signal>;
@@ -27,7 +29,7 @@ describe('AdminContent', () => {
   };
   let gallery: {
     images: ReturnType<typeof signal>;
-    addImage: ReturnType<typeof vi.fn>;
+    addMedia: ReturnType<typeof vi.fn>;
     removeImage: ReturnType<typeof vi.fn>;
   };
   let hotels: {
@@ -47,6 +49,7 @@ describe('AdminContent', () => {
   };
 
   beforeEach(async () => {
+    logoutEvents = new Subject<void>();
     content = {
       temples: signal([]),
       places: signal([]),
@@ -58,7 +61,7 @@ describe('AdminContent', () => {
     };
     gallery = {
       images: signal([]),
-      addImage: vi.fn(() => of({ id: 'image-1' })),
+      addMedia: vi.fn(() => of({ id: 'image-1' })),
       removeImage: vi.fn(() => of(void 0)),
     };
     hotels = {
@@ -81,6 +84,7 @@ describe('AdminContent', () => {
       providers: [
         provideHttpClient(),
         provideRouter([]),
+        { provide: AuthService, useValue: { logoutEvents: logoutEvents.asObservable() } },
         { provide: ContentService, useValue: content },
         { provide: GalleryService, useValue: gallery },
         { provide: HotelService, useValue: hotels },
@@ -137,9 +141,15 @@ describe('AdminContent', () => {
     expect(content.addEvent).toHaveBeenCalledOnce();
     expect(component.eventMessage()).toContain('published');
 
-    component.imageDraft = { src: 'https://example.test/image.jpg', alt: ' Temple ', category: 'Ayodhya' };
+    component.galleryImageUrls = 'https://example.test/image.jpg';
+    component.galleryAlt = ' Temple ';
+    component.galleryCategory = 'Ayodhya';
     component.addImage();
-    expect(gallery.addImage).toHaveBeenCalledWith(expect.objectContaining({ alt: 'Temple' }));
+    expect(gallery.addMedia).toHaveBeenCalledWith(expect.objectContaining({
+      src: 'https://example.test/image.jpg',
+      alt: 'Temple',
+      mediaType: 'IMAGE',
+    }));
     expect(component.imageMessage()).toContain('public gallery');
 
     component.offerDraft = {
@@ -150,9 +160,11 @@ describe('AdminContent', () => {
       validUntil: '2026-12-31',
       tripId: 'trip-1',
       active: true,
+      imageUrl: '',
     };
     component.addOffer();
     expect(offers.addOffer).toHaveBeenCalledWith(expect.objectContaining({ code: 'CODE10' }));
+    expect(offers.addOffer.mock.calls[0][0]).not.toHaveProperty('imageUrl');
     expect(component.offerMessage()).toContain('published');
 
     const contactDraft = { phone: '+91 1234567890', email: 'hello@example.test', officeHours: 'Weekdays' };
@@ -163,14 +175,108 @@ describe('AdminContent', () => {
   });
 
   it('does not report success or clear the draft when the API rejects a write', () => {
-    gallery.addImage.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
-    component.imageDraft = { src: 'https://example.test/image.jpg', alt: 'Temple', category: 'Ayodhya' };
+    gallery.addMedia.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
+    component.galleryImageUrls = 'https://example.test/image.jpg';
+    component.galleryAlt = 'Temple';
+    component.galleryCategory = 'Ayodhya';
 
     component.addImage();
 
     expect(component.imageError()).toContain('403');
     expect(component.imageMessage()).toBe('');
-    expect(component.imageDraft.src).toBe('https://example.test/image.jpg');
+    expect(component.galleryImageUrls).toBe('https://example.test/image.jpg');
+  });
+
+  it('saves several gallery sources sequentially and keeps unsaved sources after a failure', () => {
+    component.galleryImageUrls = [
+      'https://example.test/one.jpg',
+      'https://example.test/two.jpg',
+      'https://example.test/three.jpg',
+    ].join('\n');
+    component.galleryAlt = 'Pilgrimage';
+    component.galleryCategory = 'Ayodhya';
+    gallery.addMedia.mockImplementation((draft) => draft.src.endsWith('two.jpg')
+      ? throwError(() => new HttpErrorResponse({ status: 503 }))
+      : of({ ...draft, id: 'saved' }));
+
+    component.addImage();
+
+    expect(gallery.addMedia).toHaveBeenCalledTimes(2);
+    expect(component.galleryImageUrls).toBe([
+      'https://example.test/two.jpg',
+      'https://example.test/three.jpg',
+    ].join('\n'));
+    expect(component.imageError()).toContain('503');
+    expect(component.imageError()).toContain('1 item(s) were added');
+  });
+
+  it('accepts a YouTube video link as a separate gallery media record', () => {
+    component.galleryVideoUrl = 'https://youtu.be/aqz-KE-bpKQ';
+    component.galleryAlt = 'Short pilgrimage video';
+    component.galleryCategory = 'Ayodhya';
+
+    component.addImage();
+
+    expect(gallery.addMedia).toHaveBeenCalledWith({
+      src: 'https://youtu.be/aqz-KE-bpKQ',
+      alt: 'Short pilgrimage video',
+      category: 'Ayodhya',
+      mediaType: 'VIDEO',
+    });
+    expect(component.galleryVideoUrl).toBe('');
+  });
+
+  it('uploads several selected local image files as separate gallery records', async () => {
+    class TestFileReader {
+      result: string | ArrayBuffer | null = null;
+      onload: ((event: ProgressEvent<FileReader>) => unknown) | null = null;
+      onerror: ((event: ProgressEvent<FileReader>) => unknown) | null = null;
+
+      readAsDataURL(): void {
+        this.result = 'data:image/png;base64,iVBORw0KGgo=';
+        this.onload?.(new ProgressEvent('load') as ProgressEvent<FileReader>);
+      }
+    }
+    vi.stubGlobal('FileReader', TestFileReader);
+    component.selectedGalleryFiles.set([
+      new File([new Uint8Array([137, 80, 78, 71])], 'one.png', { type: 'image/png' }),
+      new File([new Uint8Array([137, 80, 78, 71])], 'two.png', { type: 'image/png' }),
+    ]);
+    component.galleryAlt = 'Pilgrimage images';
+    component.galleryCategory = 'Ayodhya';
+
+    component.addImage();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(gallery.addMedia).toHaveBeenCalledTimes(2);
+    expect(gallery.addMedia.mock.calls[0][0]).toEqual(expect.objectContaining({
+      src: expect.stringMatching(/^data:image\/png;base64,/),
+      mediaType: 'IMAGE',
+    }));
+    expect(gallery.addMedia.mock.calls[1][0]).toEqual(expect.objectContaining({
+      src: expect.stringMatching(/^data:image\/png;base64,/),
+      mediaType: 'IMAGE',
+    }));
+    expect(component.selectedGalleryFiles()).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+
+  it('stops a gallery batch on logout without submitting later items', () => {
+    const pending = new Subject<{ id: string }>();
+    component.galleryImageUrls = 'https://example.test/one.jpg\nhttps://example.test/two.jpg';
+    component.galleryAlt = 'Pilgrimage images';
+    component.galleryCategory = 'Ayodhya';
+    gallery.addMedia.mockReturnValue(pending);
+
+    component.addImage();
+    expect(gallery.addMedia).toHaveBeenCalledOnce();
+    expect(component.savingGallery()).toBe(true);
+
+    logoutEvents.next();
+
+    expect(gallery.addMedia).toHaveBeenCalledOnce();
+    expect(component.savingGallery()).toBe(false);
+    expect(component.galleryImageUrls).toBe('https://example.test/one.jpg\nhttps://example.test/two.jpg');
   });
 
   it('reports remove success only after the backend confirms deletion', () => {

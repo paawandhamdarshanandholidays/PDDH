@@ -2,6 +2,8 @@ package com.pddh.auth_service.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import com.pddh.auth_service.security.UserRole;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AuthServiceImpl.class);
 	
 	private UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -104,7 +107,13 @@ public class AuthServiceImpl implements AuthService {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid role or credentials");
 		}
 		var profile = roleAuthenticationClient.authenticate(role, identifier, password);
-		userRepository.updateLastLoginAt(profile.username(), profile.role(), java.time.Instant.now());
+		int updatedAccounts = userRepository.updateLastLoginAt(
+				profile.username(), profile.role(), java.time.Instant.now());
+		if (updatedAccounts != 1) {
+			LOGGER.warn("Login rejected because role profile has no matching active central account role={}",
+					profile.role());
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid role or credentials");
+		}
 		return new LoginResponse(
 				jwtService.generateToken(profile.username(), profile.role(), profile.email()),
 				"Logged in successfully");

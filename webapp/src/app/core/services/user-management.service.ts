@@ -45,9 +45,8 @@ export class UserManagementService {
   }
 
   listUsers(role: UserProfile['role'], page: number, size: number): Observable<UserProfilePage> {
-    const roleService = role.toLowerCase();
-    return this.http.get<UserProfilePage>(`${this.apiUrl}/api/roles/${roleService}/profiles`, {
-      params: { page, size },
+    return this.http.get<UserProfilePage>(`${this.apiUrl}/api/users`, {
+      params: { role, page, size },
     });
   }
 

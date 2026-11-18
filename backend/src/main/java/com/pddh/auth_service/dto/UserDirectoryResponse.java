@@ -1,7 +1,8 @@
 package com.pddh.auth_service.dto;
 
 public record UserDirectoryResponse(
-        Long id,
+        String id,
+        String source,
         String name,
         String contactNumber,
         String email,

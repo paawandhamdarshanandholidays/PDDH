@@ -6,17 +6,31 @@ import { UserDirectory } from './user-directory';
 describe('UserDirectory', () => {
   let fixture: ComponentFixture<UserDirectory>;
   let create: ReturnType<typeof vi.fn>;
+  let update: ReturnType<typeof vi.fn>;
   let listPage: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    create = vi.fn((entry: UserDirectoryDraft) => of({ id: 2, ...entry }));
+    create = vi.fn((entry: UserDirectoryDraft) => of({ id: 'MANUAL-2', source: 'MANUAL' as const, ...entry }));
+    update = vi.fn((id: string, entry: UserDirectoryDraft) => of({
+      id, source: 'MANUAL' as const, ...entry,
+    }));
     listPage = vi.fn((page: number, size: number) => of({
       content: page === 0 ? [{
-        id: 1,
+        id: 'MANUAL-1',
+        source: 'MANUAL' as const,
         name: 'Asha',
         contactNumber: '123',
         email: 'asha@example.test',
         address: 'Mathura',
+        referredBy: '',
+        serviceProvided: '',
+      }, {
+        id: 'ACCOUNT-3',
+        source: 'ACCOUNT' as const,
+        name: 'Gita',
+        contactNumber: '456',
+        email: 'gita@example.test',
+        address: '',
         referredBy: '',
         serviceProvided: '',
       }] : [],
@@ -32,6 +46,8 @@ describe('UserDirectory', () => {
         useValue: {
           listPage,
           create,
+          update,
+          delete: vi.fn(() => of(void 0)),
         },
       }],
     }).compileComponents();
@@ -52,9 +68,23 @@ describe('UserDirectory', () => {
     expect(listPage).toHaveBeenCalledWith(0, 50, 'name', 'ASC');
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain('asha@example.test');
+    expect(fixture.nativeElement.textContent).toContain('gita@example.test');
+    expect(fixture.nativeElement.textContent).toContain('Read only');
 
     fixture.componentInstance.changePage(1);
     expect(listPage).toHaveBeenLastCalledWith(1, 50, 'name', 'ASC');
+  });
+
+  it('only offers edit and delete controls for manual directory records', () => {
+    fixture.componentInstance.openDirectory();
+    fixture.detectChanges();
+
+    const rows = Array.from(fixture.nativeElement.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
+    expect(rows[0]?.textContent).toContain('Edit');
+    expect(rows[0]?.textContent).toContain('Delete');
+    expect(rows[1]?.textContent).toContain('Read only');
+    expect(rows[1]?.textContent).not.toContain('Edit');
+    expect(rows[1]?.textContent).not.toContain('Delete');
   });
 
   it('saves manually entered details and returns to the paged directory', () => {

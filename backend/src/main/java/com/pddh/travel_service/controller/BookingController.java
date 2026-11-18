@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +20,7 @@ import com.pddh.travel_service.dto.BookingRecordResponse;
 import com.pddh.travel_service.dto.BookingPageResponse;
 import com.pddh.travel_service.dto.BookingRequest;
 import com.pddh.travel_service.dto.BookingResponse;
+import com.pddh.travel_service.dto.BookingUpdateRequest;
 import com.pddh.travel_service.security.JwtIdentityService;
 import com.pddh.travel_service.security.TravelIdentity;
 import com.pddh.travel_service.service.BookingService;
@@ -82,10 +84,23 @@ public class BookingController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Void> updateStatus(
+    public ResponseEntity<BookingRecordResponse> updateStatus(
             @PathVariable String id, @RequestBody StatusRequest status, HttpServletRequest request) {
         TravelIdentity identity = identityService.requireIdentity(request);
-        bookingService.updateStatus(id, status == null ? null : status.status(), identity);
+        BookingRecordResponse updated = bookingService.updateStatus(
+                id, status == null ? null : status.status(), identity);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/{id}")
+    public BookingRecordResponse update(
+            @PathVariable String id, @RequestBody BookingUpdateRequest update, HttpServletRequest request) {
+        return bookingService.update(id, update, identityService.requireIdentity(request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id, HttpServletRequest request) {
+        bookingService.delete(id, identityService.requireIdentity(request));
         return ResponseEntity.noContent().build();
     }
 

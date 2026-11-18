@@ -12,6 +12,7 @@ import com.pddh.auth_service.entities.UserDirectoryEntry;
 public interface UserDirectoryRepository extends JpaRepository<UserDirectoryEntry, Long> {
     Optional<UserDirectoryEntry> findByCustomerId(Long customerId);
     Optional<UserDirectoryEntry> findByEmailIgnoreCase(String email);
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
     List<UserDirectoryEntry> findAllByOrderByNameAsc();
     Page<UserDirectoryEntry> findAll(Pageable pageable);
 }

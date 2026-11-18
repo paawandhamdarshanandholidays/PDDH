@@ -29,6 +29,8 @@ export interface EnquiryRecord extends EnquiryResponse {
   message: string;
 }
 
+export type EnquiryUpdate = Pick<EnquiryRecord, 'name' | 'email' | 'phone' | 'subject' | 'message'>;
+
 @Injectable({ providedIn: 'root' })
 export class EnquiryService {
   private readonly http = inject(HttpClient);
@@ -61,5 +63,13 @@ export class EnquiryService {
       `${this.apiUrl}/api/enquiries/${encodeURIComponent(id)}/status`,
       { status },
     );
+  }
+
+  update(id: string, update: EnquiryUpdate): Observable<EnquiryRecord> {
+    return this.http.patch<EnquiryRecord>(`${this.apiUrl}/api/enquiries/${encodeURIComponent(id)}`, update);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/api/enquiries/${encodeURIComponent(id)}`);
   }
 }

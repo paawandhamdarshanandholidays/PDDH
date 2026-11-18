@@ -1,4 +1,4 @@
-import { Component, EventEmitter, forwardRef, Input, Output, signal } from '@angular/core';
+import { booleanAttribute, Component, EventEmitter, forwardRef, Input, Output, signal } from '@angular/core';
 import {
   AbstractControl,
   ControlValueAccessor,
@@ -64,6 +64,7 @@ const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/w
 export class ImageSourceField implements ControlValueAccessor, Validator {
   @Input() label = 'Image';
   @Input() altText = 'Image preview';
+  @Input({ transform: booleanAttribute }) required = true;
   @Output() readonly urlBlur = new EventEmitter<void>();
   readonly previewState = signal<'empty' | 'loading' | 'loaded' | 'unavailable' | 'invalid'>('empty');
   source = '';
@@ -97,7 +98,7 @@ export class ImageSourceField implements ControlValueAccessor, Validator {
   }
 
   validate(_control: AbstractControl): ValidationErrors | null {
-    if (!this.source) return { required: true };
+    if (!this.source) return this.required ? { required: true } : null;
     if (this.source.startsWith('data:image/')) {
       if (!isSupportedImageDataUrl(this.source)) {
         return { invalidImageUpload: true };

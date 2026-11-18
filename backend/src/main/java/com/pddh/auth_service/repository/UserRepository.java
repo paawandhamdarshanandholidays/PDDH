@@ -34,7 +34,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	@Modifying
 	@Transactional
 	@Query("update User u set u.lastLoginAt = :lastLoginAt "
-			+ "where lower(u.username) = lower(:username) and lower(u.role) = lower(:role)")
+			+ "where lower(u.username) = lower(:username) and lower(u.role) = lower(:role) and u.active = true")
 	int updateLastLoginAt(
 			@Param("username") String username,
 			@Param("role") String role,
