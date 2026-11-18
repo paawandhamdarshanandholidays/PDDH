@@ -15,7 +15,7 @@ export interface UserDirectoryEntry {
   serviceProvided: string;
 }
 
-export type UserDirectoryDraft = Omit<UserDirectoryEntry, 'id'>;
+export type UserDirectoryDraft = Omit<UserDirectoryEntry, 'id' | 'source'>;
 
 @Injectable({ providedIn: 'root' })
 export class UserDirectoryService {

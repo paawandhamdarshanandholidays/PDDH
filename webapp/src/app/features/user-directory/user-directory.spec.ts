@@ -10,9 +10,9 @@ describe('UserDirectory', () => {
   let listPage: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    create = vi.fn((entry: UserDirectoryDraft) => of({ id: 'MANUAL-2', source: 'MANUAL' as const, ...entry }));
+    create = vi.fn((entry: UserDirectoryDraft) => of({ ...entry, id: 'MANUAL-2', source: 'MANUAL' as const }));
     update = vi.fn((id: string, entry: UserDirectoryDraft) => of({
-      id, source: 'MANUAL' as const, ...entry,
+      ...entry, id, source: 'MANUAL' as const,
     }));
     listPage = vi.fn((page: number, size: number) => of({
       content: page === 0 ? [{

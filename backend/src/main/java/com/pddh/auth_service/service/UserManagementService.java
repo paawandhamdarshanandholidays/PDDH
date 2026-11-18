@@ -267,6 +267,7 @@ public class UserManagementService {
                 user.getEmail(),
                 user.getMobile(),
                 role.name(),
-                user.isActive());
+                user.isActive(),
+                user.getLastLoginAt());
     }
 }

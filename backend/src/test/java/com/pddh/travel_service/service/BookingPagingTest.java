@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -20,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.pddh.travel_service.entity.Booking;
+import com.pddh.travel_service.dto.BookingUpdateRequest;
 import com.pddh.travel_service.repository.BookingRepository;
 import com.pddh.travel_service.security.TravelIdentity;
 
@@ -79,5 +81,62 @@ class BookingPagingTest {
                 new TravelIdentity("manager", "manager@example.test", "MANAGER"),
                 0, 10_001, "createdAt", "DESC", ""))
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void bookingStatusUpdateReturnsThePersistedRecord() {
+        Booking booking = booking();
+        when(repository.findById("booking-1")).thenReturn(Optional.of(booking));
+        when(repository.saveAndFlush(booking)).thenReturn(booking);
+
+        var updated = service.updateStatus(
+                "booking-1", " confirmed ", new TravelIdentity("manager", "manager@example.test", "MANAGER"));
+
+        assertThat(updated.id()).isEqualTo("booking-1");
+        assertThat(updated.status()).isEqualTo("CONFIRMED");
+        verify(repository).saveAndFlush(booking);
+    }
+
+    @Test
+    void bookingEditPreservesItsReferenceAndStatus() {
+        Booking booking = booking();
+        when(repository.findById("booking-1")).thenReturn(Optional.of(booking));
+        when(repository.saveAndFlush(booking)).thenReturn(booking);
+        BookingUpdateRequest request = new BookingUpdateRequest(
+                "Updated customer", "updated@example.test", "456", 3,
+                "2026-12-10", "2026-12-15", "trip-2", null);
+
+        var updated = service.update(
+                "booking-1", request, new TravelIdentity("manager", "manager@example.test", "MANAGER"));
+
+        assertThat(updated.id()).isEqualTo("booking-1");
+        assertThat(updated.status()).isEqualTo("PENDING");
+        assertThat(updated.customerName()).isEqualTo("Updated customer");
+        assertThat(updated.tripId()).isEqualTo("trip-2");
+    }
+
+    @Test
+    void bookingDeleteIsRestrictedToReviewRoles() {
+        assertThatThrownBy(() -> service.delete("booking-1",
+                new TravelIdentity("customer", "customer@example.test", "CUSTOMER")))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    private Booking booking() {
+        Booking booking = new Booking();
+        booking.setId("booking-1");
+        booking.setBookingType("TRIP");
+        booking.setCustomerId("customer");
+        booking.setCustomerName("Customer");
+        booking.setEmail("customer@example.test");
+        booking.setPhone("123");
+        booking.setGuests(2);
+        booking.setBookingDate(LocalDate.of(2026, 11, 14));
+        booking.setStartDate(LocalDate.of(2026, 12, 1));
+        booking.setEndDate(LocalDate.of(2026, 12, 5));
+        booking.setTripId("trip-1");
+        booking.setStatus("PENDING");
+        booking.setCreatedAt(Instant.now());
+        return booking;
     }
 }

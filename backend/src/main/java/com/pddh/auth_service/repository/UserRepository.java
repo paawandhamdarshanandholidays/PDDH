@@ -48,5 +48,6 @@ public interface UserRepository extends JpaRepository<User,Long> {
 		String getMobile();
 		String getRole();
 		boolean isActive();
+		Instant getLastLoginAt();
 	}
 }

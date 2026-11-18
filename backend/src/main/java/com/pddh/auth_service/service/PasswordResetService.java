@@ -219,7 +219,8 @@ public class PasswordResetService {
                         user.getEmail(),
                         user.getMobile(),
                         user.getRole(),
-                        user.isActive()))
+                        user.isActive(),
+                        user.getLastLoginAt()))
                 .toList();
     }
 

@@ -10,6 +10,9 @@ describe('UserManagement', () => {
   let fixture: ComponentFixture<UserManagement>;
   let listRoles: ReturnType<typeof vi.fn>;
   let listUsers: ReturnType<typeof vi.fn>;
+  let updateUser: ReturnType<typeof vi.fn>;
+  let setUserActive: ReturnType<typeof vi.fn>;
+  let deleteUser: ReturnType<typeof vi.fn>;
   let actorRole: string;
 
   beforeEach(async () => {
@@ -31,11 +34,32 @@ describe('UserManagement', () => {
       totalElements: role === 'STAFF' ? 1 : 0,
       totalPages: role === 'STAFF' ? 1 : 0,
     }));
+    updateUser = vi.fn((id: string, update: { name: string; email: string; mobile: string; role?: UserRole }) => of({
+      id,
+      name: update.name,
+      username: 'staff',
+      email: update.email,
+      mobile: update.mobile,
+      role: update.role ?? 'STAFF',
+      active: true,
+      lastLoginAt: null,
+    }));
+    setUserActive = vi.fn((id: string, active: boolean) => of({
+      id,
+      name: 'Staff User',
+      username: 'staff',
+      email: 'staff@example.test',
+      mobile: '123',
+      role: 'STAFF' as const,
+      active,
+      lastLoginAt: null,
+    }));
+    deleteUser = vi.fn(() => of(void 0));
     await TestBed.configureTestingModule({
       imports: [UserManagement],
       providers: [
         { provide: AuthService, useValue: { role: () => actorRole, isCeo: () => actorRole === 'CEO' } },
-        { provide: UserManagementService, useValue: { listRoles, listUsers } },
+        { provide: UserManagementService, useValue: { listRoles, listUsers, updateUser, setUserActive, deleteUser } },
       ],
     }).compileComponents();
 
@@ -77,5 +101,28 @@ describe('UserManagement', () => {
     expect(fixture.componentInstance.loading()).toBe(false);
     expect(fixture.componentInstance.selectedAction()).toBe('view');
     expect(fixture.nativeElement.textContent).toContain('Staff User');
+  });
+
+  it('updates, deactivates, and deletes selected central profiles', () => {
+    actorRole = 'MANAGER';
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.selectRole('STAFF');
+    component.selectAction('view');
+    const user = component.managedUsers()[0]!;
+    expect(component.canManageProfile(user)).toBe(true);
+
+    component.edit(user);
+    component.editDraft.name = 'Updated Staff';
+    component.saveEdit(user);
+    expect(updateUser).toHaveBeenCalledWith('staff-1', expect.objectContaining({ name: 'Updated Staff' }));
+
+    component.toggleActive(component.managedUsers()[0]!);
+    expect(setUserActive).toHaveBeenCalledWith('staff-1', false);
+
+    vi.stubGlobal('confirm', () => true);
+    component.deleteUser(component.managedUsers()[0]!);
+    expect(deleteUser).toHaveBeenCalledWith('staff-1');
+    vi.unstubAllGlobals();
   });
 });

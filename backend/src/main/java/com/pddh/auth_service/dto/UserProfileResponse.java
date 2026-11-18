@@ -1,5 +1,7 @@
 package com.pddh.auth_service.dto;
 
+import java.time.Instant;
+
 public record UserProfileResponse(
         String id,
         String name,
@@ -7,5 +9,6 @@ public record UserProfileResponse(
         String email,
         String mobile,
         String role,
-        boolean active) {
+        boolean active,
+        Instant lastLoginAt) {
 }

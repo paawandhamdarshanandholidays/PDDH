@@ -322,11 +322,16 @@ export class UserDirectory {
     this.saving.set(true);
     this.directory.delete(entry.id).subscribe({
       next: () => {
-        this.entries.update((items) => items.filter((item) => item.id !== entry.id));
+        const remaining = this.entries().filter((item) => item.id !== entry.id);
+        this.entries.set(remaining);
         this.total.update((count) => Math.max(0, count - 1));
         this.totalPages.set(Math.ceil(this.total() / this.size()));
         this.saving.set(false);
         this.message.set('Manual customer record deleted.');
+        if (remaining.length === 0 && this.page() > 0) {
+          this.page.update((page) => page - 1);
+          this.load();
+        }
       },
       error: (error: HttpErrorResponse) => {
         this.error.set(error.status

@@ -57,10 +57,12 @@ type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
                   <td>{{ booking.bookingDate | date:'mediumDate' }}</td>
                   <td><span class="booking-status" [class]="'booking-status booking-status--' + booking.status.toLowerCase()">{{ booking.status }}</span></td>
                   <td>
-                    @if (booking.status === 'PENDING') {
-                      <button class="button button--small" type="button" [disabled]="updating().has(booking.id)" (click)="setStatus(booking, 'CONFIRMED')">Confirm</button>
-                      <button class="text-button text-button--danger" type="button" [disabled]="updating().has(booking.id)" (click)="setStatus(booking, 'REJECTED')">Reject</button>
-                    } @else { <span class="booking-table__secondary">No action needed</span> }
+                    <select [ngModel]="booking.status" [ngModelOptions]="{standalone:true}"
+                      [attr.aria-label]="'Status for booking ' + booking.id"
+                      [disabled]="updating().has(booking.id)"
+                      (ngModelChange)="setStatus(booking, $event)">
+                      @for (status of bookingStatuses; track status) { <option [value]="status">{{ status }}</option> }
+                    </select>
                   </td>
                 </tr>
               } @empty {
