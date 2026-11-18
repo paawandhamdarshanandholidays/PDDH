@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UserDirectoryDraft, UserDirectoryEntry, UserDirectoryService } from '../../core/services/user-directory.service';
+import { TableExportActions } from '../../shared/components/table-export-actions/table-export-actions';
 
 type DirectorySort = 'name' | 'email' | 'id';
 type DirectoryAction = 'view' | 'add' | null;
@@ -18,7 +19,7 @@ const emptyDraft = (): UserDirectoryDraft => ({
 @Component({
   selector: 'app-user-directory',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, TableExportActions],
   styles: [`
     .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: #fff; }
     table { width: 100%; border-collapse: collapse; min-width: 1040px; }
@@ -31,6 +32,7 @@ const emptyDraft = (): UserDirectoryDraft => ({
     .directory-toolbar label { min-width: 220px; }
     .directory-pager { padding: .9rem 0; color: var(--muted); font-size: .85rem; }
     .directory-pager__actions { display: flex; align-items: center; gap: .6rem; }
+    .directory-toolbar__actions { display: flex; align-items: end; gap: 1rem; flex-wrap: wrap; }
     .directory-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
     .directory-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
     .directory-choice button { min-height: 112px; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; background: linear-gradient(135deg, #fff, #f8fafc); color: var(--ink); text-align: left; cursor: pointer; }
@@ -79,7 +81,11 @@ const emptyDraft = (): UserDirectoryDraft => ({
         <section class="user-list-panel">
           <div class="list-heading directory-toolbar">
             <div><p class="eyebrow">Saved customers</p><h2>User directory <span class="admin-count">{{ total() }}</span></h2></div>
-            <label>Search this page<input type="search" name="directorySearch" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Name, contact, email, address…"></label>
+            <div class="directory-toolbar__actions">
+              <label>Search this page<input type="search" name="directorySearch" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Name, contact, email, address…"></label>
+              <app-table-export-actions fileName="user-directory" title="User directory"
+                [headers]="exportHeaders" [rows]="exportRows()" [disabled]="loading() || !exportRows().length" />
+            </div>
           </div>
           @if (loading()) { <p class="form-hint" role="status">Loading this directory page…</p> }
           <div class="table-scroll">
@@ -159,6 +165,11 @@ export class UserDirectory {
       entry.name, entry.contactNumber, entry.email, entry.address, entry.referredBy, entry.serviceProvided,
     ].some((value) => value.toLowerCase().includes(query)));
   });
+  readonly exportHeaders = ['Name', 'Contact', 'Email', 'Address', 'Referred by', 'Service provided', 'Record type'];
+  readonly exportRows = computed(() => this.filteredEntries().map((entry) => [
+    entry.name, entry.contactNumber, entry.email, entry.address, entry.referredBy,
+    entry.serviceProvided, entry.source === 'ACCOUNT' ? 'Registered account' : 'Manual entry',
+  ]));
   readonly action = signal<DirectoryAction>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);

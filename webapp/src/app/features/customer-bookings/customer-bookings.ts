@@ -1,16 +1,17 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BookingRecord } from '../../core/models/booking.model';
 import { BookingService } from '../../core/services/booking.service';
+import { TableExportActions } from '../../shared/components/table-export-actions/table-export-actions';
 
 type BookingSort = 'createdAt' | 'bookingDate' | 'status';
 
 @Component({
   selector: 'app-customer-bookings',
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, TableExportActions],
   styles: [`
     .booking-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: #fff; }
     .booking-table { width: 100%; min-width: 760px; border-collapse: collapse; }
@@ -22,6 +23,7 @@ type BookingSort = 'createdAt' | 'bookingDate' | 'status';
     .booking-table__secondary { display: block; margin-top: .2rem; color: var(--muted); font-size: .76rem; }
     .booking-pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 0; color: var(--muted); font-size: .85rem; }
     .booking-pager__actions { display: flex; align-items: center; gap: .6rem; }
+    .booking-table-tools { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
   `],
   template: `
     <section class="admin-page">
@@ -32,7 +34,11 @@ type BookingSort = 'createdAt' | 'bookingDate' | 'status';
       @if (loading()) { <p class="form-hint" role="status">Loading your bookings…</p> }
       <section class="user-list-panel">
         <div class="list-heading"><div><p class="eyebrow">Reservations</p><h2>{{ total() }} bookings</h2></div>
-          <button class="text-button" type="button" (click)="load()" [disabled]="loading()">Refresh</button>
+          <div class="booking-table-tools">
+            <app-table-export-actions fileName="my-bookings" title="My bookings"
+              [headers]="exportHeaders" [rows]="exportRows()" [disabled]="loading() || !exportRows().length" />
+            <button class="text-button" type="button" (click)="load()" [disabled]="loading()">Refresh</button>
+          </div>
         </div>
         <div class="booking-table-wrap">
           <table class="booking-table">
@@ -74,6 +80,11 @@ type BookingSort = 'createdAt' | 'bookingDate' | 'status';
 export class CustomerBookings {
   private readonly bookingService = inject(BookingService);
   readonly bookings = signal<BookingRecord[]>([]);
+  readonly exportHeaders = ['Reference', 'Booking type', 'Trip or stay ID', 'Guests', 'Start date', 'End date', 'Booked', 'Status'];
+  readonly exportRows = computed(() => this.bookings().map((booking) => [
+    booking.id, booking.bookingType, booking.tripId ?? booking.hotelId ?? '', booking.guests,
+    booking.startDate, booking.endDate ?? '', booking.bookingDate, booking.status,
+  ]));
   readonly loading = signal(true);
   readonly error = signal('');
   readonly page = signal(0);

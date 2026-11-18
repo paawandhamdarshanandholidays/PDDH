@@ -6,6 +6,7 @@ import { finalize } from 'rxjs';
 import { BookingRecord, BookingStatus, BookingUpdate } from '../../core/models/booking.model';
 import { BookingService } from '../../core/services/booking.service';
 import { EnquiryRecord, EnquiryService, EnquiryStatus, EnquiryUpdate } from '../../core/services/enquiry.service';
+import { TableExportActions } from '../../shared/components/table-export-actions/table-export-actions';
 
 type DashboardSection = 'BOOKINGS' | 'ENQUIRIES' | null;
 type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
@@ -20,7 +21,7 @@ const emptyBookingDraft = (): BookingEditDraft => ({
 @Component({
   selector: 'app-management-dashboard',
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, TableExportActions],
   styles: [`
     .ops-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
     .ops-summary button { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .35rem 1rem; min-height: 116px; padding: 1.25rem 1.5rem; border: 1px solid var(--line); border-radius: 1.1rem; background: linear-gradient(135deg, #fff, #f5f8fc); text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
@@ -103,6 +104,8 @@ const emptyBookingDraft = (): BookingEditDraft => ({
                 <option value="ALL">All statuses</option><option>PENDING</option><option>CONFIRMED</option><option>REJECTED</option><option>CANCELLED</option>
               </select>
             </label>
+            <app-table-export-actions fileName="bookings" title="Bookings"
+              [headers]="bookingExportHeaders" [rows]="bookingExportRows()" [disabled]="bookingsLoading() || !bookingExportRows().length" />
           </div>
           @if (bookingsLoading()) { <p class="form-hint" role="status">Loading this booking page…</p> }
           <div class="ops-table-wrap">
@@ -200,6 +203,8 @@ const emptyBookingDraft = (): BookingEditDraft => ({
                 <option value="ALL">All statuses</option><option>OPEN</option><option>IN_PROGRESS</option><option>RESOLVED</option><option>CLOSED</option>
               </select>
             </label>
+            <app-table-export-actions fileName="enquiries" title="Enquiries and contact requests"
+              [headers]="enquiryExportHeaders" [rows]="enquiryExportRows()" [disabled]="enquiriesLoading() || !enquiryExportRows().length" />
           </div>
           @if (enquiriesLoading()) { <p class="form-hint" role="status">Loading this enquiry page…</p> }
           <div class="ops-table-wrap">
@@ -324,6 +329,19 @@ export class ManagementDashboard {
     return this.enquiries().filter((enquiry) =>
       this.enquiryStatus() === 'ALL' || enquiry.status === this.enquiryStatus());
   });
+  readonly bookingExportHeaders = [
+    'Reference', 'Customer', 'Email', 'Phone', 'Journey', 'Guests', 'Start date', 'End date', 'Booked', 'Status',
+  ];
+  readonly bookingExportRows = computed(() => this.filteredBookings().map((booking) => [
+    booking.id, booking.customerName, booking.email, booking.phone,
+    booking.tripId ? `Trip ${booking.tripId}` : booking.hotelId ? `Stay ${booking.hotelId}` : '',
+    booking.guests, booking.startDate, booking.endDate ?? '', booking.bookingDate, booking.status,
+  ]));
+  readonly enquiryExportHeaders = ['Reference', 'Received', 'Name', 'Subject', 'Email', 'Phone', 'Message', 'Status'];
+  readonly enquiryExportRows = computed(() => this.filteredEnquiries().map((enquiry) => [
+    enquiry.id, enquiry.createdAt, enquiry.name, enquiry.subject, enquiry.email,
+    enquiry.phone, enquiry.message, enquiry.status,
+  ]));
   readonly updatingBookings = signal<Set<string>>(new Set());
   readonly updatingEnquiries = signal<Set<string>>(new Set());
 

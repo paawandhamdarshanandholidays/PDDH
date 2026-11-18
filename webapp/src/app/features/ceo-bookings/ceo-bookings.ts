@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BookingRecord, BookingStatus } from '../../core/models/booking.model';
@@ -8,13 +8,14 @@ import { BookingService } from '../../core/services/booking.service';
 import { HotelService } from '../../core/services/hotel.service';
 import { TripService } from '../../core/services/trip.service';
 import { LoadingSpinner } from '../../shared/components/loading-spinner/loading-spinner';
+import { TableExportActions } from '../../shared/components/table-export-actions/table-export-actions';
 
 type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
 
 @Component({
   selector: 'app-ceo-bookings',
   standalone: true,
-  imports: [RouterLink, DatePipe, FormsModule, LoadingSpinner],
+  imports: [RouterLink, DatePipe, FormsModule, LoadingSpinner, TableExportActions],
   styles: [`
     .booking-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: #fff; }
     .booking-table { width: 100%; min-width: 900px; border-collapse: collapse; }
@@ -27,6 +28,7 @@ type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
     .booking-table__secondary { display: block; margin-top: .2rem; color: var(--muted); font-size: .76rem; }
     .booking-pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 0; color: var(--muted); font-size: .85rem; }
     .booking-pager__actions { display: flex; align-items: center; gap: .6rem; }
+    .booking-table-tools { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
   `],
   template: `
     <section class="admin-page">
@@ -38,7 +40,11 @@ type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
 
       <section class="user-list-panel">
         <div class="list-heading"><div><p class="eyebrow">Travel and service requests</p><h2>{{ total() }} bookings</h2></div>
-          <button class="text-button" type="button" (click)="refresh()" [disabled]="loading()">Refresh</button>
+          <div class="booking-table-tools">
+            <app-table-export-actions fileName="customer-bookings" title="Customer bookings"
+              [headers]="exportHeaders" [rows]="exportRows()" [disabled]="loading() || !exportRows().length" />
+            <button class="text-button" type="button" (click)="refresh()" [disabled]="loading()">Refresh</button>
+          </div>
         </div>
         <div class="booking-table-wrap">
           <table class="booking-table">
@@ -91,6 +97,12 @@ export class CeoBookings {
   private readonly tripService = inject(TripService);
   private readonly hotelService = inject(HotelService);
   readonly bookings = signal<BookingRecord[]>([]);
+  readonly exportHeaders = ['Reference', 'Customer', 'Email', 'Phone', 'Booking type', 'Trip or stay', 'Guests', 'Start date', 'End date', 'Booked', 'Status'];
+  readonly exportRows = computed(() => this.bookings().map((booking) => [
+    booking.id, booking.customerName, booking.email, booking.phone, booking.bookingType,
+    this.itemName(booking), booking.guests, booking.startDate, booking.endDate ?? '',
+    booking.bookingDate, booking.status,
+  ]));
   readonly loading = signal(true);
   readonly error = signal('');
   readonly page = signal(0);
