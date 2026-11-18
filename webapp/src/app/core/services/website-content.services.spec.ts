@@ -9,6 +9,7 @@ import { GalleryService } from './gallery.service';
 import { HotelService } from './hotel.service';
 import { OfferService } from './offer.service';
 import { ContactDetailsService } from './contact-details.service';
+import { TripService } from './trip.service';
 
 @Component({ standalone: true, template: '' })
 class ContentServicesHost {}
@@ -21,6 +22,7 @@ describe('website content API persistence', () => {
   let hotels: HotelService;
   let offers: OfferService;
   let contacts: ContactDetailsService;
+  let trips: TripService;
 
   beforeEach(() => {
     sessionStorage.setItem('pddh.accessToken', 'test-token');
@@ -39,6 +41,7 @@ describe('website content API persistence', () => {
     hotels = TestBed.inject(HotelService);
     offers = TestBed.inject(OfferService);
     contacts = TestBed.inject(ContactDetailsService);
+    trips = TestBed.inject(TripService);
     const fixture = TestBed.createComponent(ContentServicesHost);
     fixture.detectChanges();
     flushInitialLists();
@@ -52,12 +55,13 @@ describe('website content API persistence', () => {
   });
 
   it('creates every content type through its database API with authenticated idempotent writes', () => {
+    const uploadedImage = 'data:image/png;base64,iVBORw0KGgo=';
     const destination = {
       kind: 'Temple' as const,
       name: 'New temple',
       region: 'Ayodhya',
       description: 'A new listing',
-      imageUrl: 'https://example.test/temple.jpg',
+      imageUrl: uploadedImage,
       category: 'Temple' as const,
     };
     const event = {
@@ -65,14 +69,14 @@ describe('website content API persistence', () => {
       date: '2026-12-01',
       location: 'Ayodhya',
       description: 'Festival event',
-      imageUrl: 'https://example.test/event.jpg',
+      imageUrl: uploadedImage,
     };
-    const image = { src: 'https://example.test/gallery.jpg', alt: 'Temple', category: 'Ayodhya' };
+    const image = { src: uploadedImage, alt: 'Temple', category: 'Ayodhya' };
     const hotel = {
       name: 'Dharamshala',
       location: 'Ayodhya',
       description: 'Guest rooms',
-      imageUrl: 'https://example.test/hotel.jpg',
+      imageUrl: uploadedImage,
       pricePerNight: 800,
       amenities: 'Family rooms',
     };
@@ -84,14 +88,27 @@ describe('website content API persistence', () => {
       validUntil: '2026-12-31',
       tripId: 'trip-1',
       active: true,
+      imageUrl: uploadedImage,
+    };
+    const trip = {
+      title: 'Ayodhya journey',
+      destination: 'Ayodhya',
+      summary: 'A new journey',
+      imageUrl: uploadedImage,
+      startDate: '2026-12-01',
+      durationDays: 2,
+      price: 2500,
+      category: 'Pilgrimage' as const,
+      featured: false,
     };
     const requests: Array<{ url: string; body: object; response: object }> = [
-      { url: '/api/catalog/temples', body: destination, response: { ...destination, id: 'temple-1' } },
-      { url: '/api/catalog/places', body: { ...destination, kind: 'Place', category: 'Heritage' }, response: { ...destination, kind: 'Place', category: 'Heritage', id: 'place-1' } },
-      { url: '/api/catalog/events', body: event, response: { ...event, id: 'event-1' } },
-      { url: '/api/catalog/gallery', body: image, response: { ...image, id: 'image-1' } },
-      { url: '/api/catalog/hotels', body: hotel, response: { ...hotel, id: 'hotel-1' } },
-      { url: '/api/catalog/offers', body: offer, response: { ...offer, id: 'offer-1' } },
+      { url: '/api/catalog/temples', body: destination, response: { ...destination, imageUrl: '/api/catalog/temples/a1/image', id: 'a1' } },
+      { url: '/api/catalog/places', body: { ...destination, kind: 'Place', category: 'Heritage' }, response: { ...destination, kind: 'Place', category: 'Heritage', imageUrl: '/api/catalog/places/b2/image', id: 'b2' } },
+      { url: '/api/catalog/events', body: event, response: { ...event, imageUrl: '/api/catalog/events/e1/image', id: 'e1' } },
+      { url: '/api/catalog/gallery', body: image, response: { ...image, src: '/api/catalog/gallery/ca11/image', id: 'ca11' } },
+      { url: '/api/catalog/hotels', body: hotel, response: { ...hotel, imageUrl: '/api/catalog/hotels/ab01/image', id: 'ab01' } },
+      { url: '/api/catalog/offers', body: offer, response: { ...offer, imageUrl: '/api/catalog/offers/0ffe/image', id: '0ffe' } },
+      { url: '/api/catalog/trips', body: trip, response: { ...trip, imageUrl: '/api/catalog/trips/a11ce/image', id: 'a11ce' } },
     ];
 
     content.addDestination(destination).subscribe();
@@ -106,13 +123,18 @@ describe('website content API persistence', () => {
     expectWrite(requests[4]);
     offers.addOffer(offer).subscribe();
     expectWrite(requests[5]);
+    trips.addTrip(trip).subscribe();
+    expectWrite(requests[6]);
 
-    expect(content.temples()[0].id).toBe('temple-1');
-    expect(content.places()[0].id).toBe('place-1');
-    expect(content.events()[0].id).toBe('event-1');
-    expect(gallery.images()[0].id).toBe('image-1');
-    expect(hotels.hotels()[0].id).toBe('hotel-1');
-    expect(offers.offers()[0].id).toBe('offer-1');
+    expect(content.temples()[0].id).toBe('a1');
+    expect(content.places()[0].id).toBe('b2');
+    expect(content.events()[0].id).toBe('e1');
+    expect(gallery.images()[0].id).toBe('ca11');
+    expect(hotels.hotels()[0].id).toBe('ab01');
+    expect(offers.offers()[0].id).toBe('0ffe');
+    expect(trips.trips()[0].id).toBe('a11ce');
+    expect(content.temples()[0].imageUrl).toBe('http://localhost:9091/api/catalog/temples/a1/image');
+    expect(gallery.images()[0].src).toBe('http://localhost:9091/api/catalog/gallery/ca11/image');
 
     function expectWrite(request: { url: string; body: object; response: object }): void {
       const requestUrl = `http://localhost:9091${request.url}`;
@@ -190,7 +212,7 @@ describe('website content API persistence', () => {
     expect(contacts.items()).toEqual([]);
   });
 
-  it('rejects inline image data without sending or caching it', () => {
+  it('rejects malformed inline image data without sending or caching it', () => {
     let writeSucceeded = false;
     let writeFailed = false;
     gallery.addImage({ src: 'data:image/jpeg;base64,abc', alt: 'Photo', category: 'Ayodhya' })
@@ -203,7 +225,7 @@ describe('website content API persistence', () => {
   });
 
   function flushInitialLists(): void {
-    for (const resource of ['temples', 'places', 'events', 'gallery', 'hotels', 'offers', 'contact']) {
+    for (const resource of ['temples', 'places', 'events', 'gallery', 'hotels', 'offers', 'contact', 'trips']) {
       http.expectOne(`http://localhost:9091/api/catalog/${resource}`).flush([]);
     }
   }

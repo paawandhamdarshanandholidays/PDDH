@@ -1,6 +1,7 @@
 package com.pddh.travel_service.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.pddh.travel_service.entity.Booking;
 import com.pddh.travel_service.repository.BookingRepository;
@@ -31,7 +33,7 @@ class BookingPagingTest {
     private final BookingService service = new BookingService(repository, jdbcTemplate, trips, stays);
 
     @Test
-    void managerCanLoadSortedBookingPagesWithAtMostFiftyRows() {
+    void managerCanSearchSortedBookingPagesWithinTheMaximumSize() {
         Booking booking = new Booking();
         booking.setId("booking-1");
         booking.setBookingType("TRIP");
@@ -43,18 +45,18 @@ class BookingPagingTest {
         booking.setStartDate(LocalDate.now().plusDays(1));
         booking.setStatus("PENDING");
         booking.setCreatedAt(Instant.now());
-        when(repository.findAll(any(Pageable.class))).thenAnswer(invocation ->
-                new PageImpl<>(List.of(booking), invocation.getArgument(0), 51));
+        when(repository.search(eq("asha"), any(Pageable.class))).thenAnswer(invocation ->
+                new PageImpl<>(List.of(booking), invocation.getArgument(1), 10_001));
 
         var response = service.listPage(
                 new TravelIdentity("manager", "manager@example.test", "MANAGER"),
-                0, 50, "customerName", "ASC");
+                0, 10_000, "customerName", "ASC", " asha ");
 
         assertThat(response.content()).hasSize(1);
-        assertThat(response.totalElements()).isEqualTo(51);
+        assertThat(response.totalElements()).isEqualTo(10_001);
         var pageable = org.mockito.ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findAll(pageable.capture());
-        assertThat(pageable.getValue().getPageSize()).isEqualTo(50);
+        verify(repository).search(eq("asha"), pageable.capture());
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(10_000);
         assertThat(pageable.getValue().getSort().getOrderFor("customerName").getDirection())
                 .isEqualTo(Sort.Direction.ASC);
     }
@@ -62,12 +64,20 @@ class BookingPagingTest {
     @Test
     void customerPageIsScopedToTheAuthenticatedCustomer() {
         TravelIdentity customer = new TravelIdentity("traveller", "customer@example.test", "CUSTOMER");
-        when(repository.findAllByCustomerId(eq(customer.username()), any(Pageable.class)))
+        when(repository.searchByCustomerId(eq(customer.username()), eq(""), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), org.springframework.data.domain.PageRequest.of(0, 25), 0));
 
-        var response = service.listPage(customer, 0, 25, "createdAt", "DESC");
+        var response = service.listPage(customer, 0, 25, "createdAt", "DESC", "");
 
         assertThat(response.content()).isEmpty();
-        verify(repository).findAllByCustomerId(eq(customer.username()), any(Pageable.class));
+        verify(repository).searchByCustomerId(eq(customer.username()), eq(""), any(Pageable.class));
+    }
+
+    @Test
+    void rejectsPageSizesAboveTenThousand() {
+        assertThatThrownBy(() -> service.listPage(
+                new TravelIdentity("manager", "manager@example.test", "MANAGER"),
+                0, 10_001, "createdAt", "DESC", ""))
+                .isInstanceOf(ResponseStatusException.class);
     }
 }

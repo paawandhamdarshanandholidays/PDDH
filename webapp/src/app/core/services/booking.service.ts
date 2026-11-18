@@ -26,9 +26,10 @@ export class BookingService {
     size: number,
     sort: string,
     direction: 'ASC' | 'DESC',
+    search = '',
   ): Observable<ApiPage<BookingRecord>> {
     return this.http.get<ApiPage<BookingRecord>>(`${this.apiUrl}/api/bookings/page`, {
-      params: { page, size, sort, direction },
+      params: { page, size, sort, direction, search },
     });
   }
 

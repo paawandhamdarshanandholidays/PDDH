@@ -75,9 +75,10 @@ public class BookingController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction,
+            @RequestParam(defaultValue = "") String search,
             HttpServletRequest request) {
         TravelIdentity identity = identityService.requireIdentity(request);
-        return bookingService.listPage(identity, page, size, sort, direction);
+        return bookingService.listPage(identity, page, size, sort, direction, search);
     }
 
     @PatchMapping("/{id}/status")

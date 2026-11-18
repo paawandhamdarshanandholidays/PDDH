@@ -49,9 +49,10 @@ export class EnquiryService {
     size: number,
     sort: string,
     direction: 'ASC' | 'DESC',
+    search = '',
   ): Observable<ApiPage<EnquiryRecord>> {
     return this.http.get<ApiPage<EnquiryRecord>>(`${this.apiUrl}/api/enquiries/page`, {
-      params: { page, size, sort, direction },
+      params: { page, size, sort, direction, search },
     });
   }
 

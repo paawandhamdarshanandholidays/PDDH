@@ -81,15 +81,29 @@ describe('ManagementDashboard', () => {
     fixture.detectChanges();
   });
 
-  it('shows booking and contact enquiry records together', () => {
+  it('loads bookings and enquiries only after their summary buttons are clicked', () => {
+    expect(getBookingsPage).not.toHaveBeenCalled();
+    expect(listEnquiryPage).not.toHaveBeenCalled();
+    const buttons = fixture.nativeElement.querySelectorAll('.ops-summary button');
+    expect(buttons).toHaveLength(2);
+    expect(fixture.nativeElement.textContent).not.toContain('Asha');
+
+    buttons[0].click();
+    fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Asha');
+    expect(getBookingsPage).toHaveBeenCalledWith(0, 50, 'createdAt', 'DESC', '');
+    expect(listEnquiryPage).not.toHaveBeenCalled();
+
+    buttons[1].click();
+    fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Travel question');
-    expect(fixture.nativeElement.textContent).toContain('Bookings');
-    expect(fixture.nativeElement.textContent).toContain('Enquiries & Contact Us');
+    expect(listEnquiryPage).toHaveBeenCalledWith(0, 50, 'createdAt', 'DESC', '');
   });
 
   it('updates booking and enquiry statuses using their existing APIs', () => {
     const component = fixture.componentInstance;
+    component.setSection('BOOKINGS');
+    component.setSection('ENQUIRIES');
     component.setBookingStatus(component.bookings()[0]!, 'CONFIRMED');
     component.setEnquiryStatus(component.enquiries()[0]!, 'IN_PROGRESS');
 
@@ -97,14 +111,20 @@ describe('ManagementDashboard', () => {
     expect(updateEnquiryStatus).toHaveBeenCalledWith('enquiry-1', 'IN_PROGRESS');
   });
 
-  it('requests only 50 rows and changes server pages instead of fetching the full lists', () => {
-    expect(getBookingsPage).toHaveBeenCalledWith(0, 50, 'createdAt', 'DESC');
-    expect(listEnquiryPage).toHaveBeenCalledWith(0, 50, 'createdAt', 'DESC');
+  it('searches database results and pages them using the configured size', () => {
+    const component = fixture.componentInstance;
+    component.setSection('BOOKINGS');
+    component.search.set('asha@example.test');
+    component.searchDatabase();
+    expect(getBookingsPage).toHaveBeenLastCalledWith(0, 50, 'createdAt', 'DESC', 'asha@example.test');
 
-    fixture.componentInstance.changeBookingPage(1);
-    fixture.componentInstance.changeEnquiryPage(1);
+    component.setBookingPageSize(10000);
+    expect(getBookingsPage).toHaveBeenLastCalledWith(0, 10000, 'createdAt', 'DESC', 'asha@example.test');
+    component.setBookingPageSize(10001);
+    expect(getBookingsPage).toHaveBeenCalledTimes(3);
 
-    expect(getBookingsPage).toHaveBeenLastCalledWith(1, 50, 'createdAt', 'DESC');
-    expect(listEnquiryPage).toHaveBeenLastCalledWith(1, 50, 'createdAt', 'DESC');
+    component.setSection('ENQUIRIES');
+    component.changeEnquiryPage(1);
+    expect(listEnquiryPage).toHaveBeenLastCalledWith(1, 50, 'createdAt', 'DESC', 'asha@example.test');
   });
 });

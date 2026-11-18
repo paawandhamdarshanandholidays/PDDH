@@ -37,12 +37,22 @@ class ApiRequestLoggingFilter extends OncePerRequestFilter {
 
         MDC.put(REQUEST_ID_MDC_KEY, requestId);
         response.setHeader(REQUEST_ID_HEADER, requestId);
+        LOGGER.info("API request started method={} path={}", request.getMethod(), request.getRequestURI());
         try {
             filterChain.doFilter(wrappedRequest, response);
         } finally {
             long durationMs = (System.nanoTime() - startTime) / 1_000_000;
-            LOGGER.info("API request method={} path={} status={} durationMs={}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), durationMs);
+            int status = response.getStatus();
+            if (status >= HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
+                LOGGER.error("API request failed method={} path={} status={} durationMs={}",
+                        request.getMethod(), request.getRequestURI(), status, durationMs);
+            } else if (status >= HttpServletResponse.SC_BAD_REQUEST) {
+                LOGGER.warn("API request rejected method={} path={} status={} durationMs={}",
+                        request.getMethod(), request.getRequestURI(), status, durationMs);
+            } else {
+                LOGGER.info("API request completed method={} path={} status={} durationMs={}",
+                        request.getMethod(), request.getRequestURI(), status, durationMs);
+            }
             if (previousRequestId == null) {
                 MDC.remove(REQUEST_ID_MDC_KEY);
             } else {

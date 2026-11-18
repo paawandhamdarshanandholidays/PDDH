@@ -31,6 +31,7 @@ By default the application connects to `jdbc:postgresql://localhost:5432/pddh` a
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Empty/default SMTP settings | Password-reset email delivery |
 
 Hibernate updates tables at startup. Existing per-service databases are not migrated, modified, or deleted by the monolith.
+The local PowerShell launcher stores rolling logs outside the repository in its parent directory under `pddh-backend_logs/` (for this checkout: `C:\code\pddh-backend_logs\`). Set `PAWANDHAM_LOG_ROOT` to select another external log root; paths inside the repository are redirected outside it. API request method, path, status, duration, and request ID are logged. Hibernate SQL and `JdbcTemplate` statements are logged without bind values; Cloud Run also captures console logs in Cloud Logging.
 
 ## API
 

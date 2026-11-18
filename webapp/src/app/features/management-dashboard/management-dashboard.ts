@@ -7,7 +7,7 @@ import { BookingRecord, BookingStatus } from '../../core/models/booking.model';
 import { BookingService } from '../../core/services/booking.service';
 import { EnquiryRecord, EnquiryService, EnquiryStatus } from '../../core/services/enquiry.service';
 
-type DashboardSection = 'ALL' | 'BOOKINGS' | 'ENQUIRIES';
+type DashboardSection = 'BOOKINGS' | 'ENQUIRIES' | null;
 type BookingSort = 'createdAt' | 'customerName' | 'bookingDate' | 'status';
 type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
 
@@ -16,13 +16,22 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
   standalone: true,
   imports: [DatePipe, FormsModule],
   styles: [`
-    .ops-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
-    .ops-summary article { padding: 1.1rem 1.25rem; border: 1px solid var(--line); border-radius: 1rem; background: linear-gradient(135deg, #fff, #f8fafc); }
-    .ops-summary strong { display: block; color: var(--ink); font-size: 1.65rem; }
-    .ops-summary span { color: var(--muted); font-size: .82rem; }
+    .ops-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .ops-summary button { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .35rem 1rem; min-height: 116px; padding: 1.25rem 1.5rem; border: 1px solid var(--line); border-radius: 1.1rem; background: linear-gradient(135deg, #fff, #f5f8fc); text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+    .ops-summary button:hover, .ops-summary button[aria-pressed="true"] { border-color: #b98548; box-shadow: 0 12px 30px rgb(39 52 68 / 10%); transform: translateY(-2px); }
+    .ops-summary button:focus-visible { outline: 3px solid rgb(185 133 72 / 35%); outline-offset: 3px; }
+    .ops-summary strong { display: block; color: var(--ink); font-size: 1.8rem; }
+    .ops-summary span { color: var(--muted); font-size: .85rem; }
+    .ops-summary__copy { display: grid; gap: .15rem; }
+    .ops-summary__eyebrow { color: #a56d31 !important; font-size: .68rem !important; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    .ops-summary__arrow { grid-column: 2; grid-row: 1 / span 3; color: #a56d31; font-size: 1.35rem; }
     .ops-toolbar, .ops-table-tools, .ops-pager { display: flex; align-items: end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .ops-toolbar { margin: 1.25rem 0; }
     .ops-toolbar label, .ops-table-tools label { min-width: 190px; }
+    .ops-search { display: flex; align-items: end; gap: .6rem; width: min(100%, 680px); }
+    .ops-search label { flex: 1; }
+    .ops-search input { width: 100%; }
+    .ops-welcome { padding: 2.25rem 1.5rem; border: 1px dashed var(--line); border-radius: 1rem; color: var(--muted); text-align: center; }
     .ops-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: #fff; }
     .ops-table { width: 100%; min-width: 920px; border-collapse: collapse; }
     .ops-table th, .ops-table td { padding: .85rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -41,32 +50,43 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
     <section class="admin-page">
       <div class="admin-heading">
         <div><p class="eyebrow">Operations workspace</p><h1>Bookings, enquiries & contact</h1>
-          <p>Review and sort customer requests in focused, 50-record pages. Full messages load only when opened.</p>
+          <p>Choose a workspace to load records from your database. Search across all matching requests.</p>
         </div>
-        <button class="text-button" type="button" (click)="refresh()" [disabled]="isLoading()">Refresh</button>
+        @if (section()) { <button class="text-button" type="button" (click)="refresh()" [disabled]="isLoading()">Refresh</button> }
       </div>
       @if (error()) { <div class="notice notice--error" role="alert">{{ error() }}</div> }
 
       <div class="ops-summary">
-        <article><strong>{{ bookingsTotal() }}</strong><span>Bookings</span></article>
-        <article><strong>{{ enquiriesTotal() }}</strong><span>Enquiries & Contact Us</span></article>
+        <button type="button" [attr.aria-pressed]="section() === 'BOOKINGS'" (click)="setSection('BOOKINGS')">
+          <span class="ops-summary__copy"><span class="ops-summary__eyebrow">Travel requests</span>
+            <strong>{{ bookingsLoaded() ? bookingsTotal() : '—' }}</strong><span>Bookings</span></span>
+          <span class="ops-summary__arrow" aria-hidden="true">→</span>
+        </button>
+        <button type="button" [attr.aria-pressed]="section() === 'ENQUIRIES'" (click)="setSection('ENQUIRIES')">
+          <span class="ops-summary__copy"><span class="ops-summary__eyebrow">Customer messages</span>
+            <strong>{{ enquiriesLoaded() ? enquiriesTotal() : '—' }}</strong><span>Enquiries & Contact Us</span></span>
+          <span class="ops-summary__arrow" aria-hidden="true">→</span>
+        </button>
       </div>
 
-      <div class="ops-toolbar">
-        <label>Record type
-          <select name="section" [ngModel]="section()" (ngModelChange)="setSection($event)">
-            <option value="ALL">Bookings and enquiries</option>
-            <option value="BOOKINGS">Bookings</option>
-            <option value="ENQUIRIES">Enquiries & Contact Us</option>
-          </select>
-        </label>
-        <label>Search loaded rows
-          <input type="search" name="search" [ngModel]="search()" (ngModelChange)="search.set($event)"
-            placeholder="Search this page by customer, email, phone…">
-        </label>
-      </div>
+      @if (section()) {
+        <form class="ops-toolbar" (ngSubmit)="searchDatabase()">
+          <div class="ops-search">
+            <label>Search all {{ section() === 'BOOKINGS' ? 'bookings' : 'enquiries' }}
+              <input type="search" name="search" [ngModel]="search()" (ngModelChange)="search.set($event)"
+                placeholder="Name, email, phone, reference, status…">
+            </label>
+            <button class="button button--small" type="submit" [disabled]="isLoading()">Search</button>
+            @if (appliedSearch()) {
+              <button class="text-button" type="button" (click)="clearSearch()" [disabled]="isLoading()">Clear</button>
+            }
+          </div>
+        </form>
+      } @else {
+        <div class="ops-welcome">Select <strong>Bookings</strong> or <strong>Enquiries & Contact Us</strong> above to load records.</div>
+      }
 
-      @if (section() !== 'ENQUIRIES') {
+      @if (section() === 'BOOKINGS') {
         <section class="user-list-panel">
           <div class="list-heading ops-table-tools">
             <div><p class="eyebrow">Travel and service requests</p><h2>Bookings <span class="admin-count">{{ bookingsTotal() }}</span></h2></div>
@@ -127,7 +147,7 @@ type EnquirySort = 'createdAt' | 'name' | 'subject' | 'status';
         </section>
       }
 
-      @if (section() !== 'BOOKINGS') {
+      @if (section() === 'ENQUIRIES') {
         <section class="user-list-panel">
           <div class="list-heading ops-table-tools">
             <div><p class="eyebrow">Customer messages</p><h2>Enquiries & Contact Us <span class="admin-count">{{ enquiriesTotal() }}</span></h2></div>
@@ -197,14 +217,16 @@ export class ManagementDashboard {
   readonly enquiriesLoading = signal(false);
   readonly error = signal('');
   readonly search = signal('');
-  readonly section = signal<DashboardSection>('ALL');
+  readonly appliedSearch = signal('');
+  readonly section = signal<DashboardSection>(null);
   readonly bookingStatus = signal<'ALL' | BookingStatus>('ALL');
   readonly enquiryStatus = signal<'ALL' | EnquiryStatus>('ALL');
   readonly expandedBookingId = signal<string | null>(null);
   readonly expandedEnquiryId = signal<string | null>(null);
   readonly bookingStatuses: BookingStatus[] = ['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED'];
   readonly enquiryStatuses: EnquiryStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
-  readonly pageSizes = [10, 25, 50];
+  readonly pageSizes = [25, 50, 100, 500, 1000, 5000, 10000];
+  readonly bookingsLoaded = signal(false);
   readonly bookingsPage = signal(0);
   readonly bookingsSize = signal(50);
   readonly bookingsTotal = signal(0);
@@ -213,33 +235,21 @@ export class ManagementDashboard {
   readonly bookingsDirection = signal<'ASC' | 'DESC'>('DESC');
   readonly enquiriesPage = signal(0);
   readonly enquiriesSize = signal(50);
+  readonly enquiriesLoaded = signal(false);
   readonly enquiriesTotal = signal(0);
   readonly enquiriesTotalPages = signal(0);
   readonly enquiriesSort = signal<EnquirySort>('createdAt');
   readonly enquiriesDirection = signal<'ASC' | 'DESC'>('DESC');
   readonly filteredBookings = computed(() => {
-    const query = this.search().trim().toLowerCase();
     return this.bookings().filter((booking) =>
-      (this.bookingStatus() === 'ALL' || booking.status === this.bookingStatus())
-      && (!query || [
-        booking.id, booking.customerId, booking.customerName, booking.email, booking.phone,
-        booking.bookingType, booking.status, booking.tripId ?? '', booking.hotelId ?? '',
-      ].some((value) => value.toLowerCase().includes(query))));
+      this.bookingStatus() === 'ALL' || booking.status === this.bookingStatus());
   });
   readonly filteredEnquiries = computed(() => {
-    const query = this.search().trim().toLowerCase();
     return this.enquiries().filter((enquiry) =>
-      (this.enquiryStatus() === 'ALL' || enquiry.status === this.enquiryStatus())
-      && (!query || [
-        enquiry.id, enquiry.name, enquiry.email, enquiry.phone, enquiry.subject, enquiry.message, enquiry.status,
-      ].some((value) => value.toLowerCase().includes(query))));
+      this.enquiryStatus() === 'ALL' || enquiry.status === this.enquiryStatus());
   });
   readonly updatingBookings = signal<Set<string>>(new Set());
   readonly updatingEnquiries = signal<Set<string>>(new Set());
-
-  constructor() {
-    this.refresh();
-  }
 
   isLoading(): boolean {
     return this.bookingsLoading() || this.enquiriesLoading();
@@ -255,13 +265,34 @@ export class ManagementDashboard {
 
   refresh(): void {
     this.error.set('');
-    if (this.section() !== 'ENQUIRIES') this.loadBookings();
-    if (this.section() !== 'BOOKINGS') this.loadEnquiries();
+    if (this.section() === 'BOOKINGS') this.loadBookings();
+    if (this.section() === 'ENQUIRIES') this.loadEnquiries();
   }
 
   setSection(value: string): void {
-    this.section.set(value === 'BOOKINGS' || value === 'ENQUIRIES' ? value : 'ALL');
-    this.refresh();
+    if (value !== 'BOOKINGS' && value !== 'ENQUIRIES') return;
+    this.section.set(value);
+    this.error.set('');
+    if (value === 'BOOKINGS') this.loadBookings();
+    if (value === 'ENQUIRIES') this.loadEnquiries();
+  }
+
+  searchDatabase(): void {
+    if (!this.section()) return;
+    this.appliedSearch.set(this.search().trim());
+    if (this.section() === 'BOOKINGS') {
+      this.bookingsPage.set(0);
+      this.loadBookings();
+    } else {
+      this.enquiriesPage.set(0);
+      this.loadEnquiries();
+    }
+  }
+
+  clearSearch(): void {
+    this.search.set('');
+    this.appliedSearch.set('');
+    this.searchDatabase();
   }
 
   setBookingStatusFilter(value: string): void {
@@ -273,14 +304,14 @@ export class ManagementDashboard {
   }
 
   setBookingPageSize(size: number): void {
-    if (!this.pageSizes.includes(Number(size))) return;
+    if (!Number.isInteger(Number(size)) || Number(size) < 1 || Number(size) > 10000) return;
     this.bookingsSize.set(Number(size));
     this.bookingsPage.set(0);
     this.loadBookings();
   }
 
   setEnquiryPageSize(size: number): void {
-    if (!this.pageSizes.includes(Number(size))) return;
+    if (!Number.isInteger(Number(size)) || Number(size) < 1 || Number(size) > 10000) return;
     this.enquiriesSize.set(Number(size));
     this.enquiriesPage.set(0);
     this.loadEnquiries();
@@ -318,12 +349,13 @@ export class ManagementDashboard {
     this.bookingsLoading.set(true);
     this.error.set('');
     this.bookingService.getBookingsPage(
-      this.bookingsPage(), this.bookingsSize(), this.bookingsSort(), this.bookingsDirection(),
+      this.bookingsPage(), this.bookingsSize(), this.bookingsSort(), this.bookingsDirection(), this.appliedSearch(),
     ).subscribe({
       next: (response) => {
         this.bookings.set(response.content);
         this.bookingsTotal.set(response.totalElements);
         this.bookingsTotalPages.set(response.totalPages);
+        this.bookingsLoaded.set(true);
         this.bookingsLoading.set(false);
       },
       error: (error: HttpErrorResponse) => {
@@ -339,12 +371,13 @@ export class ManagementDashboard {
     this.enquiriesLoading.set(true);
     this.error.set('');
     this.enquiryService.listPage(
-      this.enquiriesPage(), this.enquiriesSize(), this.enquiriesSort(), this.enquiriesDirection(),
+      this.enquiriesPage(), this.enquiriesSize(), this.enquiriesSort(), this.enquiriesDirection(), this.appliedSearch(),
     ).subscribe({
       next: (response) => {
         this.enquiries.set(response.content);
         this.enquiriesTotal.set(response.totalElements);
         this.enquiriesTotalPages.set(response.totalPages);
+        this.enquiriesLoaded.set(true);
         this.enquiriesLoading.set(false);
       },
       error: (error: HttpErrorResponse) => {

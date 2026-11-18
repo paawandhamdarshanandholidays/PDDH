@@ -69,9 +69,10 @@ public class EnquiryController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction,
+            @RequestParam(defaultValue = "") String search,
             HttpServletRequest request) {
         identityService.requireStaff(request);
-        return enquiryService.listPage(page, size, sort, direction);
+        return enquiryService.listPage(page, size, sort, direction, search);
     }
 
     @PatchMapping("/{id}/status")

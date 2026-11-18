@@ -58,16 +58,18 @@ public class EnquiryManagementService {
     }
 
     @Transactional(readOnly = true)
-    public EnquiryPageResponse listPage(int page, int size, String sort, String direction) {
-        if (page < 0 || size < 1 || size > 50) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be 1–50");
+    public EnquiryPageResponse listPage(int page, int size, String sort, String direction, String search) {
+        if (page < 0 || size < 1 || size > 10_000) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be 1–10000");
         }
         String property = switch (sort) {
             case "createdAt", "name", "subject", "status", "id" -> sort;
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported enquiry sort field");
         };
         Sort.Direction order = parseDirection(direction);
-        Page<Enquiry> result = repository.findAll(PageRequest.of(page, size, Sort.by(order, property)));
+        String query = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+        Page<Enquiry> result = repository.search(query, PageRequest.of(page, size, Sort.by(order, property)));
         return new EnquiryPageResponse(
                 result.getContent().stream().map(this::toResponse).toList(),
                 result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());

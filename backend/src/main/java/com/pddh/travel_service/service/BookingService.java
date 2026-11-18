@@ -161,9 +161,10 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public BookingPageResponse listPage(
-            TravelIdentity identity, int page, int size, String sort, String direction) {
-        if (page < 0 || size < 1 || size > 50) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be 1–50");
+            TravelIdentity identity, int page, int size, String sort, String direction, String search) {
+        if (page < 0 || size < 1 || size > 10_000) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be 1–10000");
         }
         String property = switch (sort) {
             case "createdAt", "bookingDate", "customerName", "status", "id" -> sort;
@@ -176,9 +177,9 @@ public class BookingService {
             if (blank(identity.username())) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Customer identity has no account identifier");
             }
-            result = bookingRepository.findAllByCustomerId(identity.username(), request);
+            result = bookingRepository.searchByCustomerId(identity.username(), searchTerm(search), request);
         } else if (identity.canReviewBookings()) {
-            result = bookingRepository.findAll(request);
+            result = bookingRepository.search(searchTerm(search), request);
         } else {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot view bookings");
         }
@@ -200,6 +201,10 @@ public class BookingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
         booking.setStatus(requestedStatus.trim().toUpperCase(Locale.ROOT));
         bookingRepository.saveAndFlush(booking);
+    }
+
+    private String searchTerm(String search) {
+        return search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
     }
 
     private LocalDate parseDate(String value, String field) {
