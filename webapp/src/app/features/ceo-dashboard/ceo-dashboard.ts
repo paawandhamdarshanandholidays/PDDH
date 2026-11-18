@@ -39,7 +39,7 @@ export class CeoDashboard {
     { label: 'Temples', value: this.content.temples().length },
     { label: 'Places', value: this.content.places().length },
     { label: 'Hotels & stays', value: this.hotels.hotels().length },
-    { label: 'Gallery images', value: this.gallery.images().length },
+    { label: 'Gallery items', value: this.gallery.images().length },
     { label: 'Offers', value: this.offers.offers().length },
     { label: 'Events', value: this.content.events().length },
   ]);

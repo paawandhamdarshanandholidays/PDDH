@@ -6,7 +6,6 @@ target/
 *.class
 *.log
 **/coverage/
-/backend/auth-service/logs/
 
 # Packaged artifacts
 *.jar
@@ -20,6 +19,7 @@ target/
 .project
 .classpath
 .settings/
+!/backend/.project
 .vscode/
 
 # OS files

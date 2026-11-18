@@ -1,10 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { ApiPage } from '../models/api-page.model';
 import { getApiBaseUrl } from './api-url';
 
 export interface UserDirectoryEntry {
-  id: number;
+  id: string;
+  source: 'MANUAL' | 'ACCOUNT';
   name: string;
   contactNumber: string;
   email: string;
@@ -13,7 +15,7 @@ export interface UserDirectoryEntry {
   serviceProvided: string;
 }
 
-export type UserDirectoryDraft = Omit<UserDirectoryEntry, 'id'>;
+export type UserDirectoryDraft = Omit<UserDirectoryEntry, 'id' | 'source'>;
 
 @Injectable({ providedIn: 'root' })
 export class UserDirectoryService {
@@ -24,7 +26,27 @@ export class UserDirectoryService {
     return this.http.get<UserDirectoryEntry[]>(`${this.apiUrl}/api/users/directory`);
   }
 
+  listPage(
+    page: number,
+    size: number,
+    sort: string,
+    direction: 'ASC' | 'DESC',
+  ): Observable<ApiPage<UserDirectoryEntry>> {
+    return this.http.get<ApiPage<UserDirectoryEntry>>(`${this.apiUrl}/api/users/directory/page`, {
+      params: { page, size, sort, direction },
+    });
+  }
+
   create(entry: UserDirectoryDraft): Observable<UserDirectoryEntry> {
     return this.http.post<UserDirectoryEntry>(`${this.apiUrl}/api/users/directory`, entry);
+  }
+
+  update(id: string, entry: UserDirectoryDraft): Observable<UserDirectoryEntry> {
+    return this.http.patch<UserDirectoryEntry>(
+      `${this.apiUrl}/api/users/directory/${encodeURIComponent(id)}`, entry);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/api/users/directory/${encodeURIComponent(id)}`);
   }
 }

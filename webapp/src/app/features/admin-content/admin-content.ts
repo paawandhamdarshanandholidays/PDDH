@@ -3,7 +3,8 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { GalleryImage } from '../../core/models/content.model';
+import { concatMap, finalize, from, map, of, takeUntil, tap, toArray } from 'rxjs';
+import { GalleryMedia } from '../../core/models/content.model';
 import { Destination, Event as ContentEvent } from '../../core/models/content.model';
 import { Hotel, HotelDraft } from '../../core/models/hotel.model';
 import { OfferDraft } from '../../core/models/offer.model';
@@ -13,8 +14,15 @@ import { HotelService } from '../../core/services/hotel.service';
 import { OfferService } from '../../core/services/offer.service';
 import { TripService } from '../../core/services/trip.service';
 import { ContactDetailsDraft, ContactDetailsService } from '../../core/services/contact-details.service';
-import { ImageUrlService, isImageSource } from '../../core/services/image-url.service';
+import { AuthService } from '../../core/services/auth.service';
+import { ImageUrlService, isImageSource, isPublicHttpUrl, MAX_IMAGE_FILE_SIZE_BYTES } from '../../core/services/image-url.service';
 import { ImageSourceField } from '../../shared/components/image-source-field/image-source-field';
+import { getYouTubeVideoId } from '../../core/services/gallery-video-url';
+
+type GallerySource =
+  | { kind: 'file'; file: File }
+  | { kind: 'image-url'; url: string }
+  | { kind: 'video-url'; url: string };
 
 const emptyOffer = (): OfferDraft => ({
   title: '',
@@ -33,13 +41,13 @@ const emptyOffer = (): OfferDraft => ({
   imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, ImageSourceField],
   template: `
     <section class="admin-page">
-      <div class="admin-heading"><div><p class="eyebrow">Staff workspace</p><h1>Offers & gallery</h1><p>Publish offers and add journey images for visitors to explore.</p></div><div class="admin-heading__links"><a class="text-link" routerLink="/admin/trips">Manage trips <span aria-hidden="true">→</span></a><span class="admin-count">{{ gallery.images().length }} images · {{ offers.offers().length }} offers</span></div></div>
+      <div class="admin-heading"><div><p class="eyebrow">Staff workspace</p><h1>Offers & gallery</h1><p>Publish offers and add journey media for visitors to explore.</p></div><div class="admin-heading__links"><a class="text-link" routerLink="/admin/trips">Manage trips <span aria-hidden="true">→</span></a><span class="admin-count">{{ gallery.images().length }} gallery items · {{ offers.offers().length }} offers</span></div></div>
       <nav class="content-form-nav" aria-label="Choose website content form">
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'temple'" [attr.aria-pressed]="selectedForm() === 'temple'" (click)="selectForm('temple')">Add Temple</button>
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'place'" [attr.aria-pressed]="selectedForm() === 'place'" (click)="selectForm('place')">Add Places</button>
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'hotel'" [attr.aria-pressed]="selectedForm() === 'hotel'" (click)="selectForm('hotel')">Add Accommodation</button>
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'event'" [attr.aria-pressed]="selectedForm() === 'event'" (click)="selectForm('event')">Add Event</button>
-        <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'gallery'" [attr.aria-pressed]="selectedForm() === 'gallery'" (click)="selectForm('gallery')">Add Gallery Image</button>
+        <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'gallery'" [attr.aria-pressed]="selectedForm() === 'gallery'" (click)="selectForm('gallery')">Add Gallery Media</button>
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'offer'" [attr.aria-pressed]="selectedForm() === 'offer'" (click)="selectForm('offer')">Add Offer</button>
         <button type="button" [class.content-form-nav__item--active]="selectedForm() === 'contact'" [attr.aria-pressed]="selectedForm() === 'contact'" (click)="selectForm('contact')">Contact Details</button>
       </nav>
@@ -117,21 +125,47 @@ const emptyOffer = (): OfferDraft => ({
 @if (selectedForm() === 'gallery') {
         <section class="manager-section">
           <form class="form-card manager-form" (ngSubmit)="addImage()" #imageForm="ngForm">
-            <div><p class="eyebrow">Build your visual story</p><h2>Add a gallery image</h2></div>
+            <div><p class="eyebrow">Build your visual story</p><h2>Add gallery media</h2></div>
             @if (imageMessage()) { <div class="notice notice--success" role="status">{{ imageMessage() }}</div> }
             @if (imageError()) { <div class="notice notice--error" role="alert">{{ imageError() }}</div> }
-            <app-image-source-field name="galleryImage" [(ngModel)]="imageDraft.src" label="Gallery image"
-              altText="Preview of the image to add" required />
-            <label>Image description<input name="alt" [(ngModel)]="imageDraft.alt" required maxlength="120" placeholder="Describe the scene for visitors"></label>
-            <label>Gallery category<input name="category" [(ngModel)]="imageDraft.category" required maxlength="40" placeholder="Varanasi, Ayodhya, Nature..."></label>
-            <button class="button" type="submit" [disabled]="imageForm.invalid || !imageDraft.src">Add image to gallery <span aria-hidden="true">→</span></button>
-            <p class="form-hint">Paste a public image URL or upload an image to the gallery database.</p>
+            <label class="gallery-file-picker">Upload images
+              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple
+                aria-describedby="gallery-file-hint" (change)="selectGalleryFiles($event)">
+            </label>
+            <p class="form-hint" id="gallery-file-hint">Select one or more PNG, JPEG, GIF, or WebP images (up to 5 MB each).</p>
+            @if (selectedGalleryFiles().length) {
+              <ul class="gallery-file-list" aria-label="Selected image files">
+                @for (file of selectedGalleryFiles(); track $index) {
+                  <li>{{ file.name }} <button class="text-button" type="button" (click)="removeGalleryFile($index)" [attr.aria-label]="'Remove ' + file.name">Remove</button></li>
+                }
+              </ul>
+            }
+            <label>Public image URLs<textarea name="galleryImageUrls" [(ngModel)]="galleryImageUrls" rows="3" placeholder="Add one public image URL per line"></textarea></label>
+            <label>YouTube or public video URL<input name="galleryVideoUrl" [(ngModel)]="galleryVideoUrl" maxlength="2048" placeholder="https://youtu.be/... or a direct MP4/WebM link"></label>
+            <label>Media description<input name="galleryAlt" [(ngModel)]="galleryAlt" required maxlength="120" placeholder="Describe the scene or clip for visitors"></label>
+            <label>Gallery category<input name="galleryCategory" [(ngModel)]="galleryCategory" required maxlength="40" placeholder="Varanasi, Ayodhya, Nature..."></label>
+            <button class="button" type="submit" [disabled]="imageForm.invalid || !hasGallerySources() || savingGallery()">
+              {{ savingGallery() ? 'Saving gallery media…' : 'Add media to gallery' }} <span aria-hidden="true">→</span>
+            </button>
+            <p class="form-hint">You can combine image files, public image URLs, and one video link in a single submission.</p>
           </form>
           <div class="manager-list">
-            <div class="list-heading"><div><p class="eyebrow">Website gallery</p><h2>Image library</h2></div></div>
+            <div class="list-heading"><div><p class="eyebrow">Website gallery</p><h2>Gallery library</h2></div></div>
             <div class="admin-gallery-grid">
-              @for (image of gallery.images(); track image.id) {
-                <article class="admin-gallery-tile"><img [src]="image.src" [alt]="image.alt" loading="lazy"><div><span>{{ image.category }}</span><button class="text-button text-button--danger" type="button" (click)="removeImage(image)">Remove</button></div><p>{{ image.alt }}</p></article>
+              @for (media of gallery.images(); track media.id) {
+                <article class="admin-gallery-tile">
+                  @if (media.mediaType === 'VIDEO') {
+                    @if (getYouTubeVideoId(media.src)) {
+                      <a class="gallery-video-link" [href]="media.src" target="_blank" rel="noopener noreferrer">Watch YouTube video ↗</a>
+                    } @else {
+                      <video [src]="media.src" controls preload="metadata" [attr.aria-label]="media.alt"></video>
+                      <a class="gallery-video-link" [href]="media.src" target="_blank" rel="noopener noreferrer">Open video ↗</a>
+                    }
+                  } @else {
+                    <img [src]="media.src" [alt]="media.alt" loading="lazy">
+                  }
+                  <div><span>{{ media.category }} · {{ media.mediaType === 'VIDEO' ? 'Video' : 'Image' }}</span><button class="text-button text-button--danger" type="button" (click)="removeImage(media)">Remove</button></div><p>{{ media.alt }}</p>
+                </article>
               }
             </div>
           </div>
@@ -149,8 +183,8 @@ const emptyOffer = (): OfferDraft => ({
             <div class="form-row"><label>Promo code<input name="code" [(ngModel)]="offerDraft.code" required maxlength="20" placeholder="JOURNEY10"></label><label>Discount (%)<input name="discount" [(ngModel)]="offerDraft.discountPercent" required type="number" min="1" max="90"></label></div>
             <label>Applies to<select name="tripId" [(ngModel)]="offerDraft.tripId" required><option value="">Choose a journey</option>@for (trip of trips.trips(); track trip.id) { <option [value]="trip.id">{{ trip.title }}</option> }</select></label>
             <label>Valid until<input name="validUntil" [(ngModel)]="offerDraft.validUntil" [min]="today" required type="date"></label>
-            <app-image-source-field name="offerImage" [(ngModel)]="offerDraft.imageUrl" label="Offer image"
-              [altText]="offerDraft.title || 'Offer image preview'" required />
+            <app-image-source-field name="offerImage" [(ngModel)]="offerDraft.imageUrl" label="Offer image (optional)"
+              [altText]="offerDraft.title || 'Offer image preview'" [required]="false" />
             <button class="button" type="submit" [disabled]="offerForm.invalid || !trips.trips().length">Publish offer <span aria-hidden="true">→</span></button>
             @if (!trips.trips().length) { <p class="form-hint">Add a trip before publishing a linked offer.</p> }
           </form>
@@ -205,8 +239,14 @@ export class AdminContent {
   readonly contactError = signal('');
   readonly today = new Date().toISOString().slice(0, 10);
   private readonly imageUrls = inject(ImageUrlService);
+  private readonly auth = inject(AuthService);
   readonly selectedForm = signal<'temple' | 'place' | 'hotel' | 'event' | 'gallery' | 'offer' | 'contact'>('temple');
-  imageDraft: Omit<GalleryImage, 'id'> = { src: '', alt: '', category: '' };
+  readonly selectedGalleryFiles = signal<File[]>([]);
+  readonly savingGallery = signal(false);
+  galleryImageUrls = '';
+  galleryVideoUrl = '';
+  galleryAlt = '';
+  galleryCategory = '';
   offerDraft = emptyOffer();
   destinationDraft: Omit<Destination, 'id'> = { kind: 'Temple', name: '', region: '', description: '', imageUrl: '', category: 'Temple' };
   hotelDraft: HotelDraft = { name: '', location: '', description: '', imageUrl: '', pricePerNight: 0, amenities: '' };
@@ -346,20 +386,121 @@ export class AdminContent {
     });
   }
 
+  getYouTubeVideoId(source: string): string | null {
+    return getYouTubeVideoId(source);
+  }
+
+  hasGallerySources(): boolean {
+    return this.selectedGalleryFiles().length > 0
+      || this.galleryImageUrls.trim().length > 0
+      || this.galleryVideoUrl.trim().length > 0;
+  }
+
+  selectGalleryFiles(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+    const invalid = files.find((file) => !allowedTypes.has(file.type) || file.size > MAX_IMAGE_FILE_SIZE_BYTES || file.size === 0);
+    if (invalid) {
+      this.imageError.set(`${invalid.name} is not a supported image or exceeds the 5 MB limit.`);
+      return;
+    }
+    this.imageError.set('');
+    this.selectedGalleryFiles.update((current) => [...current, ...files]);
+  }
+
+  removeGalleryFile(index: number): void {
+    this.selectedGalleryFiles.update((files) => files.filter((_, fileIndex) => fileIndex !== index));
+  }
+
   addImage(): void {
     this.imageError.set('');
     this.imageMessage.set('');
-    if (!isImageSource(this.imageDraft.src)) {
-      this.imageError.set('Enter a public image URL or choose a supported image file.');
+    const imageUrls = this.galleryImageUrls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
+    const videoUrl = this.galleryVideoUrl.trim();
+    if (!this.hasGallerySources()) {
+      this.imageError.set('Choose image files, add public image URLs, or enter a video URL.');
       return;
     }
-    const draft = { ...this.imageDraft, src: this.imageDraft.src.trim(), alt: this.imageDraft.alt.trim(), category: this.imageDraft.category.trim() };
-    this.gallery.addImage(draft).subscribe({
-      next: () => {
-        this.imageDraft = { src: '', alt: '', category: '' };
-        this.imageMessage.set('Image added to the public gallery.');
+    if (imageUrls.some((url) => !isPublicHttpUrl(url))) {
+      this.imageError.set('Each gallery image URL must be a public HTTP or HTTPS link.');
+      return;
+    }
+    if (new Set(imageUrls).size !== imageUrls.length) {
+      this.imageError.set('Remove duplicate image URLs before submitting.');
+      return;
+    }
+    if (videoUrl && !isPublicHttpUrl(videoUrl)) {
+      this.imageError.set('The video must be a public HTTP or HTTPS URL.');
+      return;
+    }
+    const sources: GallerySource[] = [
+      ...this.selectedGalleryFiles().map((file): GallerySource => ({ kind: 'file', file })),
+      ...imageUrls.map((url): GallerySource => ({ kind: 'image-url', url })),
+      ...(videoUrl ? [{ kind: 'video-url' as const, url: videoUrl }] : []),
+    ];
+    const alt = this.galleryAlt.trim();
+    const category = this.galleryCategory.trim();
+    const saved: GallerySource[] = [];
+    this.savingGallery.set(true);
+    from(sources).pipe(
+      concatMap((source) => this.galleryDraft(source, alt, category).pipe(
+        concatMap((draft) => this.gallery.addMedia(draft)),
+        map(() => source),
+      )),
+      tap((source) => saved.push(source)),
+      toArray(),
+      takeUntil(this.auth.logoutEvents),
+      finalize(() => this.savingGallery.set(false)),
+    ).subscribe({
+      next: (completed) => {
+        this.finishGallerySubmission(completed);
+        this.imageMessage.set(`Added ${completed.length} ${completed.length === 1 ? 'item' : 'items'} to the public gallery.`);
       },
-      error: (error: unknown) => this.imageError.set(writeError(error, 'Could not add this image')),
+      error: (error: unknown) => {
+        this.finishGallerySubmission(saved);
+        this.imageError.set(writeError(error, `Could not save gallery media${saved.length ? `; ${saved.length} item(s) were added` : ''}`));
+      },
+    });
+  }
+
+  private galleryDraft(source: GallerySource, alt: string, category: string) {
+    const mediaType = source.kind === 'video-url' ? 'VIDEO' as const : 'IMAGE' as const;
+    if (source.kind === 'file') {
+      return from(this.readImageFile(source.file)).pipe(
+        map((src) => ({ src, alt, category, mediaType })),
+      );
+    }
+    const src = source.url;
+    return of({ src, alt, category, mediaType });
+  }
+
+  private finishGallerySubmission(completed: GallerySource[]): void {
+    const savedFiles = new Set(completed.flatMap((source) => source.kind === 'file' ? [source.file] : []));
+    const savedUrls = new Set(completed.flatMap((source) => source.kind === 'image-url' ? [source.url] : []));
+    this.selectedGalleryFiles.update((files) => files.filter((file) => !savedFiles.has(file)));
+    this.galleryImageUrls = this.galleryImageUrls
+      .split(/\r?\n/)
+      .filter((url) => !savedUrls.has(url.trim()))
+      .join('\n');
+    if (completed.some((source) => source.kind === 'video-url')) this.galleryVideoUrl = '';
+    this.savingGallery.set(false);
+    if (!this.hasGallerySources()) {
+      this.galleryAlt = '';
+      this.galleryCategory = '';
+    }
+  }
+
+  private readImageFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string' && isImageSource(reader.result)) resolve(reader.result);
+        else reject(new Error(`${file.name} could not be read as a supported image.`));
+      };
+      reader.onerror = () => reject(new Error(`${file.name} could not be read.`));
+      reader.readAsDataURL(file);
     });
   }
 
@@ -367,6 +508,9 @@ export class AdminContent {
     this.offerError.set('');
     this.offerMessage.set('');
     const draft = { ...this.offerDraft, title: this.offerDraft.title.trim(), description: this.offerDraft.description.trim(), code: this.offerDraft.code.trim().toUpperCase() };
+    const imageUrl = this.offerDraft.imageUrl?.trim();
+    if (imageUrl) draft.imageUrl = imageUrl;
+    else delete draft.imageUrl;
     this.offers.addOffer(draft).subscribe({
       next: () => {
         this.offerDraft = emptyOffer();
@@ -376,7 +520,7 @@ export class AdminContent {
     });
   }
 
-  removeImage(image: GalleryImage): void {
+  removeImage(image: GalleryMedia): void {
     this.imageError.set('');
     this.gallery.removeImage(image.id).subscribe({
       next: () => this.imageMessage.set('Image removed from the gallery.'),

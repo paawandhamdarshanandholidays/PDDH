@@ -1,4 +1,4 @@
-name: CI Pipeline (Angular + Spring Microservices)
+name: CI Pipeline (Angular + Spring Boot monolith)
 
 on:
   push:
@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   build-frontend:
@@ -42,208 +41,17 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
-          cache-dependency-path: backend/**/pom.xml
-      - name: Fix NewTopic partitions method in test
-        run: |
-          sed -i 's/\.partitions()/\.numPartitions()/g' backend/role-profile-common/src/test/java/com/pddh/roleprofile/RoleProfileConfigurationTest.java
-      - name: Verify all backend services
-        working-directory: backend/auth-service
-        run: bash ./mvnw -B -f ../pom.xml clean verify
-      - name: Delete old backend JAR artifacts
-        if: github.ref == 'refs/heads/master'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100,
-            });
-            for (const artifact of artifacts) {
-              if (artifact.name === 'backend-jars') {
-                console.log(`Deleting old artifact: ${artifact.id} (${artifact.name})`);
-                await github.rest.actions.deleteArtifact({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  artifact_id: artifact.id,
-                });
-              }
-            }
-      - name: Upload backend service JARs
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/pom.xml
+      - name: Verify the monolith
+        working-directory: backend
+        run: bash ./mvnw -B clean verify
+      - name: Upload the backend JAR
         if: github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v7
         with:
-          name: backend-jars
-          path: backend/*/target/*.jar
+          name: pddh-backend-jar
+          path: backend/target/pddh-backend-*.jar
           if-no-files-found: error
           retention-days: 1
-
-  publish-docker-images:
-    runs-on: ubuntu-24.04
-    needs:
-      - build-frontend
-      - build-backend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: frontend
-            context: ./webapp
-            dockerfile: ./webapp/Dockerfile
-          - image: admin-service
-            context: ./backend/admin-service
-            dockerfile: ./backend/Dockerfile
-          - image: api-gateway
-            context: ./backend/api-gateway
-            dockerfile: ./backend/Dockerfile
-          - image: auth-service
-            context: ./backend/auth-service
-            dockerfile: ./backend/Dockerfile
-          - image: booking-service
-            context: ./backend/booking-service
-            dockerfile: ./backend/Dockerfile
-          - image: ceo-service
-            context: ./backend/ceo-service
-            dockerfile: ./backend/Dockerfile
-          - image: contact-service
-            context: ./backend/contact-service
-            dockerfile: ./backend/Dockerfile
-          - image: customer-service
-            context: ./backend/customer-service
-            dockerfile: ./backend/Dockerfile
-          - image: events-service
-            context: ./backend/events-service
-            dockerfile: ./backend/Dockerfile
-          - image: eureka-server
-            context: ./backend/eureka-server
-            dockerfile: ./backend/Dockerfile
-          - image: gallery-service
-            context: ./backend/gallery-service
-            dockerfile: ./backend/Dockerfile
-          - image: manager-service
-            context: ./backend/manager-service
-            dockerfile: ./backend/Dockerfile
-          - image: offers-service
-            context: ./backend/offers-service
-            dockerfile: ./backend/Dockerfile
-          - image: places-service
-            context: ./backend/places-service
-            dockerfile: ./backend/Dockerfile
-          - image: staff-service
-            context: ./backend/staff-service
-            dockerfile: ./backend/Dockerfile
-          - image: stays-service
-            context: ./backend/stays-service
-            dockerfile: ./backend/Dockerfile
-          - image: temples-service
-            context: ./backend/temples-service
-            dockerfile: ./backend/Dockerfile
-          - image: trips-service
-            context: ./backend/trips-service
-            dockerfile: ./backend/Dockerfile
-    steps:
-      - uses: actions/checkout@v7
-      - name: Download backend service JARs
-        if: ${{ matrix.image != 'frontend' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: backend-jars
-          path: backend
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Extract image tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/pawandhamdarshanandholidays-${{ matrix.image }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-      - name: Delete old API image tags
-        if: ${{ matrix.image != 'frontend' }}
-        uses: actions/github-script@v9
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          IMAGE_NAME: pawandhamdarshanandholidays-${{ matrix.image }}
-        with:
-          script: |
-            const username = process.env.DOCKERHUB_USERNAME;
-            const password = process.env.DOCKERHUB_TOKEN;
-            const repository = process.env.IMAGE_NAME;
-
-            const loginResponse = await fetch('https://hub.docker.com/v2/users/login/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password }),
-            });
-            if (!loginResponse.ok) {
-              throw new Error(`Docker Hub authentication failed (${loginResponse.status}).`);
-            }
-            const { token } = await loginResponse.json();
-            if (!token) {
-              throw new Error('Docker Hub authentication response did not contain a token.');
-            }
-
-            const tagsUrl = `https://hub.docker.com/v2/repositories/${encodeURIComponent(username)}/${encodeURIComponent(repository)}/tags?page_size=100`;
-            const headers = { Authorization: `Bearer ${token}` };
-            const tags = new Set();
-            const visited = new Set();
-            let nextUrl = tagsUrl;
-
-            while (nextUrl) {
-              const pageUrl = new URL(nextUrl);
-              if (pageUrl.origin !== 'https://hub.docker.com' || !pageUrl.pathname.startsWith(`/v2/repositories/${encodeURIComponent(username)}/${encodeURIComponent(repository)}/tags`)) {
-                throw new Error('Docker Hub returned an unexpected tag pagination URL.');
-              }
-              if (visited.has(pageUrl.href)) {
-                throw new Error('Docker Hub returned a repeated tag pagination URL.');
-              }
-              visited.add(pageUrl.href);
-
-              const response = await fetch(pageUrl, { headers });
-              if (response.status === 404 && pageUrl.href === tagsUrl) {
-                console.log(`No existing Docker Hub repository found for ${repository}.`);
-                return;
-              }
-              if (!response.ok) {
-                throw new Error(`Failed to list tags for ${repository} (${response.status}).`);
-              }
-
-              const page = await response.json();
-              for (const tag of page.results) {
-                tags.add(tag.name);
-              }
-              nextUrl = page.next;
-            }
-
-            for (const tag of tags) {
-              const deleteUrl = `https://hub.docker.com/v2/repositories/${encodeURIComponent(username)}/${encodeURIComponent(repository)}/tags/${encodeURIComponent(tag)}/`;
-              const response = await fetch(deleteUrl, { method: 'DELETE', headers });
-              if (!response.ok) {
-                throw new Error(`Failed to delete tag ${tag} from ${repository} (${response.status}).`);
-              }
-              console.log(`Deleted old Docker Hub tag ${repository}:${tag}.`);
-            }
-            console.log(`Deleted ${tags.size} old tag(s) from ${repository}.`);
-      - name: Push image
-        env:
-          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
-        run: |
-          while IFS= read -r tag; do
-            if [ -n "$tag" ]; then
-              docker push "$tag"
-            fi
-          done <<< "$IMAGE_TAGS"

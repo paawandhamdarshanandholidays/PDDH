@@ -12,6 +12,10 @@ ng serve
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
+## Backend API
+
+Start the unified backend from the repository's `backend` directory with `.\run-backend.ps1`. The frontend sends API requests to `http://localhost:9091` by default, using the existing `/auth` and `/api/...` routes. Set the runtime `globalThis.PDDH_API_URL` value to a different API origin when deploying the frontend and backend separately.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:

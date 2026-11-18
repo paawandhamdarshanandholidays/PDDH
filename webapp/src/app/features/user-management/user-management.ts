@@ -212,8 +212,14 @@ export class UserManagement {
     this.rolesLoading.set(true);
     this.api.listRoles().subscribe({
       next: (roles) => {
+        const actor = this.auth.role();
+        const permittedRoles = new Set<UserRole>([
+          ...this.manageableRoles(),
+          ...this.creatableRoles(),
+          ...(actor ? [actor] : []),
+        ]);
         this.profileRoles.set([...new Set(
-          roles.filter((role): role is UserRole => USER_ROLES.includes(role)),
+          roles.filter((role): role is UserRole => USER_ROLES.includes(role) && permittedRoles.has(role)),
         )]);
         this.rolesLoading.set(false);
       },

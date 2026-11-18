@@ -17,9 +17,10 @@ export interface Event {
   imageUrl: string;
 }
 
-export interface GalleryImage {
+export interface GalleryMedia {
   id: string;
   src: string;
   alt: string;
   category: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
 }

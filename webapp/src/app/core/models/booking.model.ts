@@ -32,3 +32,8 @@ export interface BookingRecord {
   hotelId?: string;
   status: BookingStatus;
 }
+
+export type BookingUpdate = Pick<
+  BookingRecord,
+  'customerName' | 'email' | 'phone' | 'guests' | 'startDate' | 'endDate' | 'tripId' | 'hotelId'
+>;

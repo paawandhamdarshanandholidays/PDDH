@@ -1,7 +1,7 @@
 import { Injectable, WritableSignal, afterNextRender, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, defer, map, takeUntil, tap, throwError } from 'rxjs';
-import { Destination, Event, GalleryImage } from '../models/content.model';
+import { Destination, Event } from '../models/content.model';
 import { getApiBaseUrl } from './api-url';
 import { AuthService } from './auth.service';
 import { IdempotencySubmission } from './idempotency-key';

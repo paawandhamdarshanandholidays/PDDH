@@ -1,4 +1,4 @@
-import { Component, EventEmitter, forwardRef, Input, Output, signal } from '@angular/core';
+import { booleanAttribute, Component, EventEmitter, forwardRef, Input, Output, signal } from '@angular/core';
 import {
   AbstractControl,
   ControlValueAccessor,
@@ -7,9 +7,12 @@ import {
   ValidationErrors,
   Validator,
 } from '@angular/forms';
-import { isPublicHttpUrl } from '../../../core/services/image-url.service';
+import {
+  isPublicHttpUrl,
+  isSupportedImageDataUrl,
+  MAX_IMAGE_FILE_SIZE_BYTES,
+} from '../../../core/services/image-url.service';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 
 @Component({
@@ -61,6 +64,7 @@ const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/w
 export class ImageSourceField implements ControlValueAccessor, Validator {
   @Input() label = 'Image';
   @Input() altText = 'Image preview';
+  @Input({ transform: booleanAttribute }) required = true;
   @Output() readonly urlBlur = new EventEmitter<void>();
   readonly previewState = signal<'empty' | 'loading' | 'loaded' | 'unavailable' | 'invalid'>('empty');
   source = '';
@@ -94,10 +98,9 @@ export class ImageSourceField implements ControlValueAccessor, Validator {
   }
 
   validate(_control: AbstractControl): ValidationErrors | null {
-    if (!this.source) return { required: true };
+    if (!this.source) return this.required ? { required: true } : null;
     if (this.source.startsWith('data:image/')) {
-      if (this.source.length > Math.ceil(MAX_FILE_SIZE * 4 / 3) + 64
-          || !/^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(this.source)) {
+      if (!isSupportedImageDataUrl(this.source)) {
         return { invalidImageUpload: true };
       }
     } else if (!isPublicHttpUrl(this.source)) {
@@ -129,7 +132,7 @@ export class ImageSourceField implements ControlValueAccessor, Validator {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (!ACCEPTED_TYPES.has(file.type) || file.size === 0 || file.size > MAX_FILE_SIZE) {
+    if (!ACCEPTED_TYPES.has(file.type) || file.size === 0 || file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
       this.setSource('');
       this.previewState.set('invalid');
       input.value = '';
