@@ -31,6 +31,7 @@ const emptyDraft = (): UserDirectoryDraft => ({
     .directory-toolbar label { min-width: 220px; }
     .directory-pager { padding: .9rem 0; color: var(--muted); font-size: .85rem; }
     .directory-pager__actions { display: flex; align-items: center; gap: .6rem; }
+    .directory-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
     .directory-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
     .directory-choice button { min-height: 112px; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; background: linear-gradient(135deg, #fff, #f8fafc); color: var(--ink); text-align: left; cursor: pointer; }
     .directory-choice button:hover { border-color: var(--accent, #b37a35); box-shadow: 0 8px 24px rgb(15 23 42 / 8%); }
@@ -118,8 +119,10 @@ const emptyDraft = (): UserDirectoryDraft => ({
                       <td>{{ entry.source === 'ACCOUNT' ? 'Registered account' : 'Manual entry' }}</td>
                       <td>
                         @if (entry.source === 'MANUAL') {
-                          <button class="text-button" type="button" (click)="edit(entry)" [disabled]="saving()">Edit</button>
-                          <button class="text-button text-button--danger" type="button" (click)="delete(entry)" [disabled]="saving()">Delete</button>
+                          <div class="directory-row-actions">
+                            <button class="text-button" type="button" (click)="edit(entry)" [disabled]="saving()">Edit</button>
+                            <button class="text-button text-button--danger" type="button" (click)="delete(entry)" [disabled]="saving()">Delete</button>
+                          </div>
                         } @else { <span class="form-hint">Read only</span> }
                       </td>
                     </tr>

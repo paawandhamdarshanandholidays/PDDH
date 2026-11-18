@@ -47,6 +47,7 @@ const emptyBookingDraft = (): BookingEditDraft => ({
     .ops-table tbody tr:hover { background: #f8fafc; }
     .ops-table__primary { font-weight: 700; }
     .ops-table__secondary { display: block; margin-top: .2rem; color: var(--muted); font-size: .76rem; }
+    .ops-table__actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
     .ops-pager { padding: .9rem 0; color: var(--muted); font-size: .85rem; }
     .ops-pager__actions { display: flex; align-items: center; gap: .6rem; }
     .ops-details { max-width: 52rem; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -126,13 +127,15 @@ const emptyBookingDraft = (): BookingEditDraft => ({
                       @for (status of bookingStatuses; track status) { <option [value]="status">{{ status }}</option> }
                     </select></td>
                     <td>
-                      <button class="text-button" type="button" (click)="toggleBooking(booking.id)">
-                        {{ expandedBookingId() === booking.id ? 'Hide' : 'View' }}
-                      </button>
-                      <button class="text-button" type="button" (click)="editBooking(booking)"
-                        [disabled]="updatingBookings().has(booking.id)">Edit</button>
-                      <button class="text-button text-button--danger" type="button" (click)="deleteBooking(booking)"
-                        [disabled]="updatingBookings().has(booking.id)">Delete</button>
+                      <div class="ops-table__actions">
+                        <button class="text-button" type="button" (click)="toggleBooking(booking.id)">
+                          {{ expandedBookingId() === booking.id ? 'Hide' : 'View' }}
+                        </button>
+                        <button class="text-button" type="button" (click)="editBooking(booking)"
+                          [disabled]="updatingBookings().has(booking.id)">Edit</button>
+                        <button class="text-button text-button--danger" type="button" (click)="deleteBooking(booking)"
+                          [disabled]="updatingBookings().has(booking.id)">Delete</button>
+                      </div>
                     </td>
                   </tr>
                   @if (editingBookingId() === booking.id) {
@@ -221,13 +224,15 @@ const emptyBookingDraft = (): BookingEditDraft => ({
                       @for (status of enquiryStatuses; track status) { <option [value]="status">{{ status.replace('_', ' ') }}</option> }
                     </select></td>
                     <td>
-                      <button class="text-button" type="button" (click)="toggleEnquiry(enquiry.id)">
-                        {{ expandedEnquiryId() === enquiry.id ? 'Hide' : 'View message' }}
-                      </button>
-                      <button class="text-button" type="button" (click)="editEnquiry(enquiry)"
-                        [disabled]="updatingEnquiries().has(enquiry.id)">Edit</button>
-                      <button class="text-button text-button--danger" type="button" (click)="deleteEnquiry(enquiry)"
-                        [disabled]="updatingEnquiries().has(enquiry.id)">Delete</button>
+                      <div class="ops-table__actions">
+                        <button class="text-button" type="button" (click)="toggleEnquiry(enquiry.id)">
+                          {{ expandedEnquiryId() === enquiry.id ? 'Hide' : 'View message' }}
+                        </button>
+                        <button class="text-button" type="button" (click)="editEnquiry(enquiry)"
+                          [disabled]="updatingEnquiries().has(enquiry.id)">Edit</button>
+                        <button class="text-button text-button--danger" type="button" (click)="deleteEnquiry(enquiry)"
+                          [disabled]="updatingEnquiries().has(enquiry.id)">Delete</button>
+                      </div>
                     </td>
                   </tr>
                   @if (editingEnquiryId() === enquiry.id) {
